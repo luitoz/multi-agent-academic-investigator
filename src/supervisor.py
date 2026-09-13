@@ -6,40 +6,74 @@ has no knowledge of how the sub-agent validates or retries its own work.
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
-from typing_extensions import TypedDict
+from pydantic import BaseModel, Field
+from typing_extensions import NotRequired, TypedDict
 
 from framework import model
-from calendar_agent import schedule_event
-
-SUPERVISOR_PROMPT = (
-    "You are a helpful personal assistant. "
-    "You can schedule calendar events. "
-    "Break down user requests into appropriate tool calls and coordinate the results."
-)
-
-supervisor_agent = create_agent(
-    model,
-    tools=[schedule_event],
-    system_prompt=SUPERVISOR_PROMPT,
-)
+from retrieval_agent import manage_search
 
 
+# TODO remove unnecessary fields
 class SupervisorState(TypedDict):
     request: str
-    result: str
+    objectives: NotRequired[list[str]]
+    dimensions: NotRequired[list[str]]
+    queries: NotRequired[list[str]]
+    tool_results: NotRequired[list[dict]]
+    insights: NotRequired[str]
 
 
-def supervisor_node(state: SupervisorState, config: RunnableConfig) -> dict:
-    """Run the supervisor agent, which coordinates the calendar tool."""
-    result = supervisor_agent.invoke(
-        {"messages": [{"role": "user", "content": state["request"]}]},
+NUM_OBJECTIVES = 1
+
+DEFINE_OBJECTIVES_PROMPT = (
+    "You are an academic investigator assistant. Given a natural language research "
+    "question, define exactly {num_objectives} research objectives, ordered by "
+    "importance, needed to conduct the research on the user's research question."
+).format(num_objectives=NUM_OBJECTIVES)
+
+
+class ResearchObjectives(BaseModel):
+    objectives: list[str] = Field(
+        description=(
+            f"Exactly {NUM_OBJECTIVES} research objectives, ordered descending by importance, "
+            "each phrased as a short goal (e.g., 'Measure the extent of generative "
+            "AI use among university students')."
+        )
+    )
+
+
+def define_objectives(state: SupervisorState, config: RunnableConfig) -> dict:
+    """Step 1: ask the LLM to break the research question into N ordered research objectives."""
+    objectives_model = model.with_structured_output(ResearchObjectives)
+    output = objectives_model.invoke(
+        [
+            {"role": "system", "content": DEFINE_OBJECTIVES_PROMPT},
+            {"role": "user", "content": state["request"]},
+        ],
         config=config,
     )
-    return {"result": result["messages"][-1].text}
+    return {"objectives": output.objectives}
 
-# TODO maintain for now, until creating a conditional retry logic in the supervisor graph level
+
+def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict:
+    """Step 2: hand the research objectives to the retrieval sub-agent as one natural language request."""
+    request = "find papers on this research objectives: " + " ".join(
+        f"{objective}." for objective in state.get("objectives", [])
+    )
+    result = manage_search.invoke({"request": request}, config=config)
+    return {
+        "dimensions": result["dimensions"],
+        "queries": result["queries"],
+        "tool_results": result["tool_results"],
+        "insights": result["insights"],
+    }
+
+
 _graph = StateGraph(SupervisorState)
-_graph.add_node("supervisor_node", supervisor_node)
-_graph.add_edge(START, "supervisor_node")
-_graph.add_edge("supervisor_node", END)
+_graph.add_node("define_objectives", define_objectives)
+_graph.add_node("call_retrieval_agent", call_retrieval_agent)
+_graph.add_edge(START, "define_objectives")
+_graph.add_edge("define_objectives", "call_retrieval_agent")
+_graph.add_edge("call_retrieval_agent", END)
 supervisor_graph = _graph.compile()
+

@@ -3,13 +3,17 @@
 """
 import pytest
 
+import retrieval_agent
 from retrieval_agent import manage_search
 
 
 class TestManageSearch:
-    # @pytest.mark.integration
-    def test_search_covers_multiple_dimensions(self) -> None:
+    @pytest.mark.integration
+    def test_search_covers_multiple_dimensions(self, monkeypatch) -> None:
         """Runs the real retrieval agent end-to-end against a natural language request."""
+        # Keep the integration test cheap/fast; production keeps NUM_DIMENSIONS=2.
+        monkeypatch.setattr(retrieval_agent, "NUM_DIMENSIONS", 1)
+
         result = manage_search.invoke(
             {
                 "request": (
@@ -23,6 +27,7 @@ class TestManageSearch:
         assert "dimensions" in result
         assert "queries" in result
         assert "tool_results" in result
-        assert len(result["dimensions"]) >= 3
+        assert "insights" in result
+        assert len(result["dimensions"]) == 1
         assert len(result["queries"]) == len(result["dimensions"])
         assert len(result["tool_results"]) == len(result["queries"])

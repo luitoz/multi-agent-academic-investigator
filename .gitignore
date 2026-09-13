@@ -2,6 +2,8 @@
 __pycache__/
 .coverage
 .DS_Store
+debug/
+.env
 lang_graph_demo.egg-info/dependency_links.txt
 lang_graph_demo.egg-info/PKG-INFO
 lang_graph_demo.egg-info/requires.txt

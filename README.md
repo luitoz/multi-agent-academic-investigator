@@ -55,7 +55,9 @@ pytest tests/test_calendar_agent.py::TestScheduleNode -v
 Run the integration tests (requires a running Ollama server):
 
 ```bash
-pytest -m integration tests/test_calendar_agent_integration.py
+pytest -m integration tests/test_retrieval_agent_integration.py
+pytest -m integration tests/test_supervisor_integration.py
+
 pytest -m integration tests/test_calendar_agent_integration.py::TestScheduleGraph::test_full_retry_graph_schedules_event_when_no_duration
 ```
 
@@ -65,12 +67,6 @@ Run all tests, including integration tests (requires a running Ollama server):
 pytest -m "integration or not integration"
 ```
 
-pytest captures stdout by default, so `print()` output is only shown for
-failing tests. Pass `-v` to see it for passing tests too:
-
-```bash
-pytest -v tests/test_calendar_agent_integration.py
-```
 
 Note: test files must be run through `pytest` (not `python
 tests/test_x.py` directly) — `pytest.ini` sets `pythonpath = src` so tests can
@@ -92,3 +88,14 @@ Or add a `breakpoint()` call where you want to inspect state and run without
 ```bash
 pytest tests/test_retrieval_agent_integration.py -m integration -s -v --no-cov
 ```
+
+## Debugging the retrieval agent's insights
+
+Set `DEBUG_DUMP_INSIGHTS=1` to have `analyze_findings` (in
+`src/retrieval_agent.py`) write the raw LLM output to `debug/insights.md` on
+every run, useful for inspecting formatting/content issues:
+
+```bash
+DEBUG_DUMP_INSIGHTS=1 pytest -m integration tests/test_retrieval_agent_integration.py
+```
+

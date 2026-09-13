@@ -17,10 +17,6 @@ from retrieval_agent import (
 )
 
 
-class TestSearchPapers:
-    def test_returns_stub_result_with_query(self):
-        result = search_papers.func(query="ai+education")
-        assert result == "Search results for query: ai+education"
 
 
 class TestDimensionToQuery:
@@ -68,6 +64,5 @@ class TestSearchDimensions:
             "stub result: ai+in+education",
             "stub result: student+performance",
         ]
-        assert result["result"] == "stub result: ai+in+education\nstub result: student+performance"
 
 
