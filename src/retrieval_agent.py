@@ -4,18 +4,31 @@ import re
 from pathlib import Path
 from typing import Protocol, cast
 
+import nltk
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
+from nltk.corpus import stopwords
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from framework import model
-import requests
-import json
+from search_tools import search_papers
 
 # Default dimension count for real execution; tests may monkeypatch this attribute.
-NUM_DIMENSIONS = 2
+NUM_DIMENSIONS = 1
+
+
+def _load_stopwords() -> set[str]:
+    """Load the NLTK English stopwords, downloading them first if not already present."""
+    try:
+        return set(stopwords.words("english"))
+    except LookupError:
+        nltk.download("stopwords")
+        return set(stopwords.words("english"))
+
+
+_STOPWORDS = _load_stopwords()
 
 
 def _identify_dimensions_prompt(num_dimensions: int) -> str:
@@ -30,44 +43,10 @@ ANALYZE_FINDINGS_PROMPT = (
     "You are an evidence synthesis assistant. Given a list of paper titles and "
     "abstracts, extract the key findings from the gathered evidence: main "
     "conclusions, methodology used, and limitations. Summarize the insights in "
-    "clear natural language."
+    "clear natural language and markdown format."
 )
 
 DEBUG_DUMP_INSIGHTS = os.environ.get("DEBUG_DUMP_INSIGHTS", "").lower() in ("1", "true", "yes")
-
-@tool
-def search_papers(
-    query: str
-) -> dict:
-    """Search for academic papers using the given query."""
-
-    url = "https://api.semanticscholar.org/graph/v1/paper/search"
-
-    query_params = {
-        "query": query,
-        "limit": 1,
-        "fields": "paperId,title,abstract,year,referenceCount,citationCount,isOpenAccess,fieldsOfStudy"
-    }
-    # TODO ask for a the key when running production. for integration tests, use a mock service
-    api_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
-    print(f"Using Semantic Scholar API key: {api_key}")
-
-    # Define headers with API key
-    headers = {"x-api-key": api_key}
-
-    try:
-        response = requests.get(url, params=query_params, headers=headers, timeout=10)
-        response.raise_for_status()
-        result = response.json()
-    except requests.exceptions.RequestException as exc:
-        raise RuntimeError(f"search_papers request failed for query {query!r}: {exc}") from exc
-    except ValueError as exc:
-        raise RuntimeError(f"search_papers returned invalid JSON for query {query!r}: {exc}") from exc
-
-    print(result)
-    return result
-
-
 
 
 class SearchDimensions(BaseModel):
@@ -106,6 +85,7 @@ class RetrievalState(TypedDict):
 
 def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
     """Step 1: ask the LLM to break the request into distinct search dimensions."""
+    print(f"Identifying dimensions for request: {state['request']}")
     num_dimensions = NUM_DIMENSIONS
     schema = _build_search_dimensions_schema(num_dimensions)
     dimensions_model = model.with_structured_output(schema)
@@ -119,20 +99,23 @@ def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
             config=config,
         ),
     )
+    print(f"Identified {NUM_DIMENSIONS} dimensions:")
     return {"dimensions": output.dimensions}
 
 
 def _dimension_to_query(dimension: str) -> str:
     """Turn a dimension description into a `+`-joined search query, e.g. 'covid+vaccination+europe'."""
     words = re.findall(r"[a-zA-Z0-9]+", dimension.lower())
+    words = [word for word in words if word not in _STOPWORDS]
     return "+".join(words)
 
 
 def search_dimensions(state: RetrievalState) -> dict:
     """Step 2: build one query per dimension and invoke search_papers once per query."""
     queries = [_dimension_to_query(dimension) for dimension in state["dimensions"]]
+    print("Searching identified dimensions with tool")
     tool_results = [search_papers.invoke({"query": query}) for query in queries]
-
+    print(f"Completed search for {len(queries)} queries")
     return {"queries": queries, "tool_results": tool_results}
 
 
@@ -153,11 +136,12 @@ def analyze_findings(state: RetrievalState, config: RunnableConfig) -> dict:
     """Step 3: analyze the retrieved papers' titles/abstracts to surface conclusions, methodology, and limitations."""
     papers = _extract_papers(state["tool_results"])
     if not papers:
-        return {"insights": "No paper titles or abstracts were available to analyze."}
+        raise RuntimeError("No paper titles or abstracts were available to analyze. Try another research question.") 
 
     papers_text = "\n\n".join(
         f"Title: {paper['title']}\nAbstract: {paper['abstract']}" for paper in papers
     )
+    print(f"Analyzing {len(papers)} retrieved papers and identifying insights")
     response = model.invoke(
         [
             {"role": "system", "content": ANALYZE_FINDINGS_PROMPT},
@@ -165,9 +149,8 @@ def analyze_findings(state: RetrievalState, config: RunnableConfig) -> dict:
         ],
         config=config,
     )
-
+    print("Completed analysis of retrieved papers")
     # dump raw LLM output for debugging formatting/content issues
-    # TODO ask explicitly for markdown formatted output
     if DEBUG_DUMP_INSIGHTS:
         debug_dir = Path(__file__).resolve().parent.parent / "debug"
         debug_dir.mkdir(exist_ok=True)

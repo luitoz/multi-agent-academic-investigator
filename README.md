@@ -64,7 +64,7 @@ pytest -m integration tests/test_calendar_agent_integration.py::TestScheduleGrap
 Run all tests, including integration tests (requires a running Ollama server):
 
 ```bash
-pytest -m "integration or not integration"
+pytest -m "integration or not integration" -v
 ```
 
 

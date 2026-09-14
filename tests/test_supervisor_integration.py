@@ -7,7 +7,9 @@ from supervisor import SupervisorState, supervisor_graph
 
 class TestSupervisorGraph:
     @pytest.mark.integration
-    def test_full_graph_defines_objectives_and_retrieves_papers(self, monkeypatch) -> None:
+    def test_full_graph_defines_objectives_and_retrieves_papers(
+        self, monkeypatch
+    ) -> None:
         """Runs the whole compiled graph (define_objectives -> call_retrieval_agent -> END),
         not just a single node, against the real model and the real retrieval sub-agent."""
         # Keep the integration test cheap/fast; production keeps NUM_DIMENSIONS=2.

@@ -6,13 +6,13 @@ import pytest
 import retrieval_agent
 from retrieval_agent import manage_search
 
-
+@pytest.mark.integration
 class TestManageSearch:
-    @pytest.mark.integration
-    def test_search_covers_multiple_dimensions(self, monkeypatch) -> None:
-        """Runs the real retrieval agent end-to-end against a natural language request."""
-        # Keep the integration test cheap/fast; production keeps NUM_DIMENSIONS=2.
-        monkeypatch.setattr(retrieval_agent, "NUM_DIMENSIONS", 1)
+    
+    def test_search_covers_multiple_dimensions_using_mock_endpoint_server_with_success_response(
+            self, monkeypatch, mock_semantic_scholar_server) -> None:
+        """Runs the retrieval agent end-to-end but using the mock Semantic Scholar endpoint server to
+        economize on API calls."""
 
         result = manage_search.invoke(
             {
@@ -30,4 +30,20 @@ class TestManageSearch:
         assert "insights" in result
         assert len(result["dimensions"]) == 1
         assert len(result["queries"]) == len(result["dimensions"])
-        assert len(result["tool_results"]) == len(result["queries"])
+        assert len(result["tool_results"]) == len(result["queries"])        
+
+    def test_search_covers_multiple_dimensions_using_mock_endpoint_server_with_error_response(
+            self, monkeypatch, mock_semantic_scholar_usage_limit_server) -> None:
+        """Runs the retrieval agent end-to-end but using the mock Semantic Scholar endpoint server to
+        simulate a usage limit error and economize on API calls."""
+        with pytest.raises(RuntimeError, match="search_papers request failed"):
+            manage_search.invoke(
+                {
+                    "request": (
+                        "find papers on this research "
+                        "objetives: Measure the extent of generative AI use among university students, "
+                        "Examine the association between AI usage and academic performance. "
+                    )
+                }
+            )
+        

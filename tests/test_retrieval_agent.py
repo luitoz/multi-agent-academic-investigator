@@ -13,8 +13,8 @@ from retrieval_agent import (
     identify_dimensions,
     manage_search,
     search_dimensions,
-    search_papers,
 )
+from search_tools import search_papers
 
 
 
@@ -27,6 +27,9 @@ class TestDimensionToQuery:
 
     def test_strips_punctuation(self):
         assert _dimension_to_query("COVID-19, vaccination & Europe!") == "covid+19+vaccination+europe"
+
+    def test_excludes_common_stopwords(self):
+        assert _dimension_to_query("the use of AI in the classroom") == "use+ai+classroom"
 
     def test_empty_dimension_returns_empty_string(self):
         assert _dimension_to_query("") == ""
@@ -59,9 +62,9 @@ class TestSearchDimensions:
         state = cast(RetrievalState, {"dimensions": ["AI in education", "student performance"]})
         result = search_dimensions(state)
 
-        assert result["queries"] == ["ai+in+education", "student+performance"]
+        assert result["queries"] == ["ai+education", "student+performance"]
         assert result["tool_results"] == [
-            "stub result: ai+in+education",
+            "stub result: ai+education",
             "stub result: student+performance",
         ]
 

@@ -44,6 +44,7 @@ class ResearchObjectives(BaseModel):
 
 def define_objectives(state: SupervisorState, config: RunnableConfig) -> dict:
     """Step 1: ask the LLM to break the research question into N ordered research objectives."""
+    print(f"Defining research objectives for request: {state['request']}")
     objectives_model = model.with_structured_output(ResearchObjectives)
     output = objectives_model.invoke(
         [
@@ -56,6 +57,7 @@ def define_objectives(state: SupervisorState, config: RunnableConfig) -> dict:
 
 
 def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict:
+    print(f"Calling retrieval agent to gather information for {NUM_OBJECTIVES} ordered research objectives")
     """Step 2: hand the research objectives to the retrieval sub-agent as one natural language request."""
     request = "find papers on this research objectives: " + " ".join(
         f"{objective}." for objective in state.get("objectives", [])
