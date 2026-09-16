@@ -11,16 +11,14 @@ from typing_extensions import NotRequired, TypedDict
 
 from framework import model
 from retrieval_agent import manage_search
+from search_tools import Paper
 
 
-# TODO remove unnecessary fields
 class SupervisorState(TypedDict):
     request: str
     objectives: NotRequired[list[str]]
-    dimensions: NotRequired[list[str]]
-    queries: NotRequired[list[str]]
-    tool_results: NotRequired[list[dict]]
     insights: NotRequired[str]
+    papers: NotRequired[list[Paper]]
 
 
 NUM_OBJECTIVES = 1
@@ -64,10 +62,8 @@ def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict
     )
     result = manage_search.invoke({"request": request}, config=config)
     return {
-        "dimensions": result["dimensions"],
-        "queries": result["queries"],
-        "tool_results": result["tool_results"],
         "insights": result["insights"],
+        "papers": result["papers"]
     }
 
 

@@ -25,8 +25,9 @@ class _MockSemanticScholarHandler(BaseHTTPRequestHandler):
                     "year": 2024,
                     "referenceCount": 10,
                     "citationCount": 5,
-                    "isOpenAccess": True,
-                    "fieldsOfStudy": ["Computer Science"],
+                    "publicationTypes": ["JournalArticle"],
+                    "journal": {"name": "Mock Journal", "volume": "1", "pages": "1-10"},
+                    "venue": "Mock Venue",
                 }
             ],
         }

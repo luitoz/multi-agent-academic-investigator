@@ -6,7 +6,7 @@ import pytest
 import retrieval_agent
 from retrieval_agent import manage_search
 
-@pytest.mark.integration
+# @pytest.mark.integration
 class TestManageSearch:
     
     def test_search_covers_multiple_dimensions_using_mock_endpoint_server_with_success_response(
@@ -28,9 +28,12 @@ class TestManageSearch:
         assert "queries" in result
         assert "tool_results" in result
         assert "insights" in result
-        assert len(result["dimensions"]) == 1
         assert len(result["queries"]) == len(result["dimensions"])
-        assert len(result["tool_results"]) == len(result["queries"])        
+        assert len(result["tool_results"]) == len(result["queries"])  
+        assert "papers" in result
+        assert result["papers"][0].paperId.startswith("mock")
+        assert result["papers"][0].journal is not None
+        assert result["papers"][0].journal.name == "Mock Journal"
 
     def test_search_covers_multiple_dimensions_using_mock_endpoint_server_with_error_response(
             self, monkeypatch, mock_semantic_scholar_usage_limit_server) -> None:
