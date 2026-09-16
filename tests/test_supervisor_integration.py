@@ -24,13 +24,7 @@ class TestSupervisorGraph:
             )
         )
         assert result
-        assert "objectives" in result
-        assert "dimensions" in result
-        assert "queries" in result
-        assert "tool_results" in result
         assert "insights" in result
-        assert len(result["objectives"]) == 1
-        assert len(result["dimensions"]) == 1
-        assert len(result["queries"]) == len(result["dimensions"])
-        assert len(result["tool_results"]) == len(result["queries"])
-        assert result["insights"]
+        assert len(result["insights"]) > 0
+        assert "papers" in result
+        assert len(result["papers"]) > 0

@@ -11,16 +11,14 @@ from typing_extensions import NotRequired, TypedDict
 
 from framework import model
 from retrieval_agent import manage_search
+from search_tools import Paper
 
 
-# TODO remove unnecessary fields
 class SupervisorState(TypedDict):
     request: str
     objectives: NotRequired[list[str]]
-    dimensions: NotRequired[list[str]]
-    queries: NotRequired[list[str]]
-    tool_results: NotRequired[list[dict]]
     insights: NotRequired[str]
+    papers: NotRequired[list[Paper]]
 
 
 NUM_OBJECTIVES = 1
@@ -55,7 +53,12 @@ def define_objectives(state: SupervisorState, config: RunnableConfig) -> dict:
     )
     return {"objectives": output.objectives}
 
-
+"""
+Implementation decision:
+Supervisor delegates all information retrieval tasks to the retrieval agent, ensuring that the 
+process of gathering relevant academic papers is handled efficiently and systematically. It also makes
+a clear separation of concerns between agents, allowing maintainability and extensibility.
+"""
 def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict:
     print(f"Calling retrieval agent to gather information for {NUM_OBJECTIVES} ordered research objectives")
     """Step 2: hand the research objectives to the retrieval sub-agent as one natural language request."""
@@ -64,10 +67,8 @@ def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict
     )
     result = manage_search.invoke({"request": request}, config=config)
     return {
-        "dimensions": result["dimensions"],
-        "queries": result["queries"],
-        "tool_results": result["tool_results"],
         "insights": result["insights"],
+        "papers": result["papers"]
     }
 
 

@@ -13,10 +13,10 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from framework import model
-from search_tools import search_papers
+from search_tools import Paper, search_papers
 
 # Default dimension count for real execution; tests may monkeypatch this attribute.
-NUM_DIMENSIONS = 1
+NUM_DIMENSIONS = 2
 
 
 def _load_stopwords() -> set[str]:
@@ -79,8 +79,9 @@ class RetrievalState(TypedDict):
     request: str
     dimensions: list[str]
     queries: list[str]
-    tool_results: list[dict]
+    tool_results: list[list[Paper]]
     insights: str
+    papers: list[Paper]
 
 
 def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
@@ -109,7 +110,10 @@ def _dimension_to_query(dimension: str) -> str:
     words = [word for word in words if word not in _STOPWORDS]
     return "+".join(words)
 
-
+"""
+Implementation decision: Deterministic code will handle paper retrieval to minimize unnecessary
+ requests to rate-limited academic search APIs.
+"""
 def search_dimensions(state: RetrievalState) -> dict:
     """Step 2: build one query per dimension and invoke search_papers once per query."""
     queries = [_dimension_to_query(dimension) for dimension in state["dimensions"]]
@@ -120,15 +124,13 @@ def search_dimensions(state: RetrievalState) -> dict:
 
 
 
-def _extract_papers(tool_results: list[dict]) -> list[dict]:
-    """Pull out just the title and abstract fields from each search_papers response."""
+def _extract_papers(tool_results: list[list[Paper]]) -> list[Paper]:
+    """Flatten the per-query results, keeping only papers that have both a title and abstract."""
     papers = []
     for result in tool_results:
-        for paper in (result or {}).get("data", []) or []:
-            title = paper.get("title")
-            abstract = paper.get("abstract")
-            if title and abstract:
-                papers.append({"title": title, "abstract": abstract})
+        for paper in result or []:
+            if paper.title and paper.abstract:
+                papers.append(paper)
     return papers
 
 
@@ -139,7 +141,7 @@ def analyze_findings(state: RetrievalState, config: RunnableConfig) -> dict:
         raise RuntimeError("No paper titles or abstracts were available to analyze. Try another research question.") 
 
     papers_text = "\n\n".join(
-        f"Title: {paper['title']}\nAbstract: {paper['abstract']}" for paper in papers
+        f"Title: {paper.title}\nAbstract: {paper.abstract}" for paper in papers
     )
     print(f"Analyzing {len(papers)} retrieved papers and identifying insights")
     response = model.invoke(
@@ -156,7 +158,7 @@ def analyze_findings(state: RetrievalState, config: RunnableConfig) -> dict:
         debug_dir.mkdir(exist_ok=True)
         (debug_dir / "insights.md").write_text(response.content)
 
-    return {"insights": response.content}
+    return {"insights": response.content, "papers": papers}
 
 
 def build_retrieval_graph() -> StateGraph:
@@ -194,5 +196,6 @@ def manage_search(request: str, config: RunnableConfig) -> dict:
         "queries": result["queries"],
         "tool_results": result["tool_results"],
         "insights": result["insights"],
+        "papers": result["papers"]
     }
     

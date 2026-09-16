@@ -99,3 +99,8 @@ every run, useful for inspecting formatting/content issues:
 DEBUG_DUMP_INSIGHTS=1 pytest -m integration tests/test_retrieval_agent_integration.py
 ```
 
+## local testing with LangSmith
+
+pip install -U "langgraph-cli[inmem]"
+langgraph dev
+
