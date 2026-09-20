@@ -1,5 +1,6 @@
 """Evidence analysis sub-agent and the `manage_evidence_analysis` tool that exposes it to the supervisor."""
 from datetime import date
+import json
 
 from langchain.agents import create_agent
 from langchain.tools import tool
@@ -7,7 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-from framework import extract_tool_result, model
+from framework import extract_tool_results, model, shallow_paper_json
 from search_tools import Paper
 
 EVALUATE_PAPERS_QUALITY_PROMPT = (
@@ -20,7 +21,9 @@ EVALUATE_PAPERS_QUALITY_PROMPT = (
 MAX_PUBLICATION_AGE_YEARS = 3
 MIN_REFERENCE_COUNT = 10
 MIN_CITATION_COUNT = 1
-
+RELIABLE_DESCRIPTION = 'reliable'
+UNRELIABLE_DESCRIPTION = 'unreliable'
+QUESTIONABLE_DESCRIPTION = 'questionable'
 
 def _has_quality_metrics(paper: Paper) -> bool:
     """Publication must be recent, with enough references and citations."""
@@ -32,12 +35,13 @@ def _has_quality_metrics(paper: Paper) -> bool:
         and paper.referenceCount > MIN_REFERENCE_COUNT
         and paper.citationCount > MIN_CITATION_COUNT
     )
-    print(f"Quality metrics for paper '{paper.title}': {result}")
+    print(f"Quality metrics for paper '{json.dumps(shallow_paper_json(paper), indent=2)}': {result}")
     return result
 
 
 def _has_complete_journal_info(paper: Paper) -> bool:
     """Journal must report a name, volume, and pages."""
+    print(f"Journal info for paper '{paper.title}': {paper.journal}")
     journal = paper.journal
     result = bool(journal and journal.name and journal.volume and journal.pages)
     print(f"Complete journal info for paper '{paper.title}': {result}")
@@ -46,6 +50,7 @@ def _has_complete_journal_info(paper: Paper) -> bool:
 
 def _has_peer_reviewed_type(paper: Paper) -> bool:
     """Publication types must include a journal article or conference paper."""
+    print(f"Publication types for paper '{paper.title}': {paper.publicationTypes}")
     publication_types = paper.publicationTypes or []
     result = any(publication_type.lower() in ("journalarticle", "conference") for publication_type in publication_types)
     print(f"Peer-reviewed type for paper '{paper.title}': {result}")
@@ -57,11 +62,11 @@ def assess_evidence_quality(paper: Paper) -> str:
     """Assess the reliability of a single paper given its bibliographic metadata."""
     checks = {
         "recent publication with enough references and citations": _has_quality_metrics(paper),
-        "complete journal name, volume, and pages": _has_complete_journal_info(paper),
         "journal or conference publication type": _has_peer_reviewed_type(paper),
+        "complete journal name, volume, and pages": _has_complete_journal_info(paper),
     }
     score = sum(checks.values())
-    verdict = "reliable" if score == len(checks) else "questionable" if score > 0 else "unreliable"
+    verdict = RELIABLE_DESCRIPTION if score == len(checks) else QUESTIONABLE_DESCRIPTION if score > 0 else UNRELIABLE_DESCRIPTION
     failed = [rule for rule, passed in checks.items() if not passed]
     details = "all checks passed" if not failed else f"failed: {', '.join(failed)}"
     print(f"Assessing evidence quality for paper '{paper.title}': {verdict} ({score}/{len(checks)}) - {details}")
@@ -95,10 +100,16 @@ def assess_evidence_quality_node(state: EvidenceAnalysisState, config: RunnableC
         config=config,
     )
     messages = result["messages"]
-    quality_feedback = extract_tool_result(messages, "assess_evidence_quality")
-    if not quality_feedback:
+    tool_results = extract_tool_results(messages, "assess_evidence_quality")
+    if not tool_results:
         raise RuntimeError("assess_evidence_quality tool was never called.")
-    print(f"Evidence quality assessment completed with feedback: {quality_feedback}")
+    if all(r == RELIABLE_DESCRIPTION for r in tool_results):
+        quality_feedback = RELIABLE_DESCRIPTION
+    elif all(r == UNRELIABLE_DESCRIPTION for r in tool_results):
+        quality_feedback = UNRELIABLE_DESCRIPTION
+    else:
+        quality_feedback = QUESTIONABLE_DESCRIPTION
+    print(f"Evidence quality assessment for {len(papers)} papers completed with feedback: {quality_feedback}")
     return {"quality_feedback": quality_feedback, "messages": messages}
 
 

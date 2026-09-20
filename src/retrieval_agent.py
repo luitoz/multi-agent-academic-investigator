@@ -16,7 +16,7 @@ from framework import model
 from search_tools import Paper, search_papers
 
 # Default dimension count for real execution; tests may monkeypatch this attribute.
-NUM_DIMENSIONS = 2
+NUM_DIMENSIONS = 1
 
 
 def _load_stopwords() -> set[str]:
@@ -35,7 +35,7 @@ def _identify_dimensions_prompt(num_dimensions: int) -> str:
     return (
         "You are an evidence retrieval assistant. Given a natural language research "
         f"request, identify exactly {num_dimensions} distinct dimensions that should be covered to "
-        "comprehensively accomplish the research objectives."
+        "comprehensively accomplish the research objectives. Each dimension should be specified clearly and concisely."
     )
 
 
