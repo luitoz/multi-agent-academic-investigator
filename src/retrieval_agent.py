@@ -1,7 +1,5 @@
 """Retrieval sub-agent and the `manage_search` tool that exposes it to the supervisor."""
-import os
 import re
-from pathlib import Path
 from typing import Protocol, cast
 
 import nltk
@@ -39,16 +37,6 @@ def _identify_dimensions_prompt(num_dimensions: int) -> str:
     )
 
 
-ANALYZE_FINDINGS_PROMPT = (
-    "You are an evidence synthesis assistant. Given a list of paper titles and "
-    "abstracts, extract the key findings from the gathered evidence: main "
-    "conclusions, methodology used, and limitations. Summarize the insights in "
-    "clear natural language and markdown format."
-)
-
-DEBUG_DUMP_INSIGHTS = os.environ.get("DEBUG_DUMP_INSIGHTS", "").lower() in ("1", "true", "yes")
-
-
 class SearchDimensions(BaseModel):
     dimensions: list[str] = Field(
         description=(
@@ -80,7 +68,6 @@ class RetrievalState(TypedDict):
     dimensions: list[str]
     queries: list[str]
     tool_results: list[list[Paper]]
-    insights: str
     papers: list[Paper]
 
 
@@ -114,16 +101,6 @@ def _dimension_to_query(dimension: str) -> str:
 Implementation decision: Deterministic code will handle paper retrieval to minimize unnecessary
  requests to rate-limited academic search APIs.
 """
-def search_dimensions(state: RetrievalState) -> dict:
-    """Step 2: build one query per dimension and invoke search_papers once per query."""
-    queries = [_dimension_to_query(dimension) for dimension in state["dimensions"]]
-    print("Searching identified dimensions with tool")
-    tool_results = [search_papers.invoke({"query": query}) for query in queries]
-    print(f"Completed search for {len(queries)} queries")
-    return {"queries": queries, "tool_results": tool_results}
-
-
-
 def _extract_papers(tool_results: list[list[Paper]]) -> list[Paper]:
     """Flatten the per-query results, keeping only papers that have both a title and abstract."""
     papers = []
@@ -134,43 +111,26 @@ def _extract_papers(tool_results: list[list[Paper]]) -> list[Paper]:
     return papers
 
 
-def analyze_findings(state: RetrievalState, config: RunnableConfig) -> dict:
-    """Step 3: analyze the retrieved papers' titles/abstracts to surface conclusions, methodology, and limitations."""
-    papers = _extract_papers(state["tool_results"])
+def search_dimensions(state: RetrievalState) -> dict:
+    """Step 2: build one query per dimension, invoke search_papers once per query, and extract the usable papers."""
+    queries = [_dimension_to_query(dimension) for dimension in state["dimensions"]]
+    print("Searching identified dimensions with tool")
+    tool_results = [search_papers.invoke({"query": query}) for query in queries]
+    print(f"Completed search for {len(queries)} queries")
+    papers = _extract_papers(tool_results)
     if not papers:
-        raise RuntimeError("No paper titles or abstracts were available to analyze. Try another research question.") 
-
-    papers_text = "\n\n".join(
-        f"Title: {paper.title}\nAbstract: {paper.abstract}" for paper in papers
-    )
-    print(f"Analyzing {len(papers)} retrieved papers and identifying insights")
-    response = model.invoke(
-        [
-            {"role": "system", "content": ANALYZE_FINDINGS_PROMPT},
-            {"role": "user", "content": papers_text},
-        ],
-        config=config,
-    )
-    print("Completed analysis of retrieved papers")
-    # dump raw LLM output for debugging formatting/content issues
-    if DEBUG_DUMP_INSIGHTS:
-        debug_dir = Path(__file__).resolve().parent.parent / "debug"
-        debug_dir.mkdir(exist_ok=True)
-        (debug_dir / "insights.md").write_text(response.content)
-
-    return {"insights": response.content, "papers": papers}
+        raise RuntimeError("No paper titles or abstracts were available. Try another research question.")
+    return {"queries": queries, "tool_results": tool_results, "papers": papers}
 
 
 def build_retrieval_graph() -> StateGraph:
     graph = StateGraph(RetrievalState)
     graph.add_node("identify_dimensions", identify_dimensions)
     graph.add_node("search_dimensions", search_dimensions)
-    graph.add_node("analyze_findings", analyze_findings)
 
     graph.add_edge(START, "identify_dimensions")
     graph.add_edge("identify_dimensions", "search_dimensions")
-    graph.add_edge("search_dimensions", "analyze_findings")
-    graph.add_edge("analyze_findings", END)
+    graph.add_edge("search_dimensions", END)
 
     return graph
 
@@ -195,7 +155,6 @@ def manage_search(request: str, config: RunnableConfig) -> dict:
         "dimensions": result["dimensions"],
         "queries": result["queries"],
         "tool_results": result["tool_results"],
-        "insights": result["insights"],
         "papers": result["papers"]
     }
     

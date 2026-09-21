@@ -4,6 +4,9 @@ from evidence_analysis_agent import RELIABLE_DESCRIPTION, UNRELIABLE_DESCRIPTION
 The supervisor only sees the sub-agent's public tool (`schedule_event`) - it
 has no knowledge of how the sub-agent validates or retries its own work.
 """
+import os
+from pathlib import Path
+
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -13,7 +16,7 @@ from typing_extensions import NotRequired, TypedDict
 from evidence_analysis_agent import manage_evidence_analysis
 from framework import model
 from retrieval_agent import manage_search
-from search_tools import Paper
+from search_tools import Author, Paper
 
 
 class SupervisorState(TypedDict):
@@ -35,6 +38,15 @@ DEFINE_OBJECTIVES_PROMPT = (
     "question, define exactly {num_objectives} research objectives, ordered by "
     "importance, needed to conduct the research on the user's research question."
 ).format(num_objectives=NUM_OBJECTIVES)
+
+ANALYZE_FINDINGS_PROMPT = (
+    "You are an evidence synthesis assistant. Given a list of paper titles and "
+    "abstracts, extract the key findings from the gathered evidence: main "
+    "conclusions, methodology used, and limitations. Summarize the insights in "
+    "clear natural language and markdown format."
+)
+
+DEBUG_DUMP_INSIGHTS = os.environ.get("DEBUG_DUMP_INSIGHTS", "").lower() in ("1", "true", "yes")
 
 
 class ResearchObjectives(BaseModel):
@@ -81,7 +93,6 @@ def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict
         )
     result = manage_search.invoke({"request": request}, config=config)
     return {
-        "insights": result["insights"],
         "papers": result["papers"],
         "dimensions": result["dimensions"],
     }
@@ -94,6 +105,43 @@ def call_evidence_analysis_agent(state: SupervisorState, config: RunnableConfig)
     return {"quality_feedback": result["quality_feedback"]}
 
 
+def _format_authors(authors: list[Author] | None) -> str:
+    """Render an author list as a comma-separated string of names, or 'Unknown' if none."""
+    if not authors:
+        return "Unknown"
+    names = [author.name for author in authors if author.name]
+    return ", ".join(names) if names else "Unknown"
+
+
+def analyze_findings(state: SupervisorState, config: RunnableConfig) -> dict:
+    """Step 4: once the gathered papers are deemed reliable, synthesize their findings into insights."""
+    papers = state.get("papers") or []
+    if not papers:
+        raise RuntimeError("No papers were available to analyze.")
+
+    papers_text = "\n\n".join(
+        f"Title: {paper.title}\nAuthors: {_format_authors(paper.authors)}\nYear: {paper.year}\n"
+        f"Abstract: {paper.abstract}"
+        for paper in papers
+    )
+    print(f"Analyzing {len(papers)} reliable papers and identifying insights")
+    response = model.invoke(
+        [
+            {"role": "system", "content": ANALYZE_FINDINGS_PROMPT},
+            {"role": "user", "content": papers_text},
+        ],
+        config=config,
+    )
+    print("Completed analysis of retrieved papers")
+    # dump raw LLM output for debugging formatting/content issues
+    if DEBUG_DUMP_INSIGHTS:
+        debug_dir = Path(__file__).resolve().parent.parent / "debug"
+        debug_dir.mkdir(exist_ok=True)
+        (debug_dir / "insights.md").write_text(response.content)
+
+    return {"insights": response.content}
+
+
 def retry_retrieval(state: SupervisorState) -> dict:
     """Bump the retry counter before re-invoking the retrieval agent."""
     retry_count = state.get("retry_count", 0) + 1
@@ -102,9 +150,9 @@ def retry_retrieval(state: SupervisorState) -> dict:
 
 
 def should_retry_retrieval(state: SupervisorState) -> str:
-    """Retry retrieval once if the gathered papers weren't deemed reliable; otherwise give up."""
+    """Analyze findings once reliable; otherwise retry retrieval once before giving up."""
     if state.get("quality_feedback") == RELIABLE_DESCRIPTION:
-        return END
+        return "analyze_findings"
     if state.get("retry_count", 0) >= MAX_RETRIEVAL_RETRIES:
         return END
     return "retry_retrieval"
@@ -114,12 +162,16 @@ _graph = StateGraph(SupervisorState)
 _graph.add_node("define_objectives", define_objectives)
 _graph.add_node("call_retrieval_agent", call_retrieval_agent)
 _graph.add_node("call_evidence_analysis_agent", call_evidence_analysis_agent)
+_graph.add_node("analyze_findings", analyze_findings)
 _graph.add_node("retry_retrieval", retry_retrieval)
 
 _graph.add_edge(START, "define_objectives")
 _graph.add_edge("define_objectives", "call_retrieval_agent")
 _graph.add_edge("call_retrieval_agent", "call_evidence_analysis_agent")
-_graph.add_conditional_edges("call_evidence_analysis_agent", should_retry_retrieval, ["retry_retrieval", END])
+_graph.add_conditional_edges(
+    "call_evidence_analysis_agent", should_retry_retrieval, ["analyze_findings", "retry_retrieval", END]
+)
+_graph.add_edge("analyze_findings", END)
 _graph.add_edge("retry_retrieval", "call_retrieval_agent")
 supervisor_graph = _graph.compile()
 

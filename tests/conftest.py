@@ -27,6 +27,7 @@ class _MockSemanticScholarHandler(BaseHTTPRequestHandler):
                     "citationCount": 5,
                     "publicationTypes": ["JournalArticle"],
                     "journal": {"name": "Mock Journal", "volume": "1", "pages": "1-10"},
+                    "authors": [{"name": "Mock Author", "authorId": "mock-author-1"}],
                     "venue": "Mock Venue",
                 }
             ],

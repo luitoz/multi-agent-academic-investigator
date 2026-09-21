@@ -5,6 +5,8 @@ the LLM and search tool calls.
 """
 from typing import cast
 
+import pytest
+
 import retrieval_agent as retrieval_agent_module
 from retrieval_agent import (
     RetrievalState,
@@ -14,7 +16,7 @@ from retrieval_agent import (
     manage_search,
     search_dimensions,
 )
-from search_tools import search_papers
+from search_tools import Paper, search_papers
 
 
 
@@ -57,15 +59,30 @@ class TestIdentifyDimensions:
 
 class TestSearchDimensions:
     def test_builds_one_query_and_result_per_dimension(self, monkeypatch):
-        monkeypatch.setattr(search_papers, "func", lambda query: f"stub result: {query}")
+        def fake_search(query):
+            return [Paper(title=f"Title for {query}", abstract=f"Abstract for {query}")]
+
+        monkeypatch.setattr(search_papers, "func", fake_search)
 
         state = cast(RetrievalState, {"dimensions": ["AI in education", "student performance"]})
         result = search_dimensions(state)
 
         assert result["queries"] == ["ai+education", "student+performance"]
         assert result["tool_results"] == [
-            "stub result: ai+education",
-            "stub result: student+performance",
+            fake_search("ai+education"),
+            fake_search("student+performance"),
         ]
+        assert [paper.title for paper in result["papers"]] == [
+            "Title for ai+education",
+            "Title for student+performance",
+        ]
+
+    def test_raises_when_no_papers_have_title_and_abstract(self, monkeypatch):
+        monkeypatch.setattr(search_papers, "func", lambda query: [Paper(title=None, abstract=None)])
+
+        state = cast(RetrievalState, {"dimensions": ["AI in education"]})
+
+        with pytest.raises(RuntimeError, match="No paper titles or abstracts were available"):
+            search_dimensions(state)
 
 

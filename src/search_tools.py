@@ -36,6 +36,10 @@ class Journal(BaseModel):
     volume: str | None = None
     pages: str | None = None
 
+class Author(BaseModel):
+
+    name: str | None = None
+    authorId: str | None = None
 
 class Paper(BaseModel):
     """A single paper record, restricted to the fields requested from Semantic Scholar."""
@@ -49,6 +53,7 @@ class Paper(BaseModel):
     publicationTypes: list[str] | None = None
     journal: Journal | None = None
     venue: str | None = None
+    authors: list[Author] | None = None
 
 
 def _num_configured_semantic_scholar_keys() -> int:
@@ -64,7 +69,7 @@ def search_papers(
     query_params = {
         "query": query,
         "limit": 1,
-        "fields": "paperId,title,abstract,year,referenceCount,citationCount,publicationTypes,journal,venue"
+        "fields": "paperId,title,abstract,year,referenceCount,citationCount,publicationTypes,journal,venue,authors"
     }
 
     # Retry with a different key on a 429 (rate limited), up to once per configured key.
