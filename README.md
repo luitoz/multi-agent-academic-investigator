@@ -5,7 +5,7 @@ a local Ollama model.
 
 ## Project layout
 
-- `src/framework.py` — shared model config, `build_retry_graph`, `extract_tool_result`.
+- `src/utils/framework.py` — shared model config, `build_retry_graph`, `extract_tool_result`.
 - `src/calendar_agent.py` — calendar sub-agent and `schedule_event` tool.
 - `src/supervisor.py` — supervisor agent that routes requests to the sub-agent.
 - `src/mas_demo.py` / `demo.py` — entry points for running the demo.
@@ -20,7 +20,7 @@ pip install -e .
 ```
 
 The demo also expects a local [Ollama](https://ollama.com) server running
-with the `qwen3:14b` model (see `src/framework.py`).
+with the `qwen3:14b` model (see `src/utils/framework.py`).
 
 ## Running the demo
 

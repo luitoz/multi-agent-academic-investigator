@@ -4,8 +4,10 @@ from evidence_analysis_agent import RELIABLE_DESCRIPTION, UNRELIABLE_DESCRIPTION
 The supervisor only sees the sub-agent's public tool (`schedule_event`) - it
 has no knowledge of how the sub-agent validates or retries its own work.
 """
+import json
 import os
 from pathlib import Path
+from typing import cast
 
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
@@ -16,13 +18,13 @@ from typing_extensions import NotRequired, TypedDict
 from evidence_analysis_agent import manage_evidence_analysis
 from framework import model
 from retrieval_agent import manage_search
-from search_tools import Author, Paper
+from search_api import Author, Paper
 
 
 class SupervisorState(TypedDict):
     request: str
     objectives: NotRequired[list[str]]
-    insights: NotRequired[str]
+    insights: NotRequired[dict]
     papers: NotRequired[list[Paper]]
     quality_feedback: NotRequired[str]
     retry_count: NotRequired[int]
@@ -39,11 +41,16 @@ DEFINE_OBJECTIVES_PROMPT = (
     "importance, needed to conduct the research on the user's research question."
 ).format(num_objectives=NUM_OBJECTIVES)
 
-ANALYZE_FINDINGS_PROMPT = (
-    "You are an evidence synthesis assistant. Given a list of paper titles and "
-    "abstracts, extract the key findings from the gathered evidence: main "
-    "conclusions, methodology used, and limitations. Summarize the insights in "
-    "clear natural language and markdown format."
+SYNTHESIZE_FINDINGS_PROMPT = (
+"You are an evidence synthesis assistant. Given a set of retrieved academic papers, "
+"synthesize the evidence relevant to the research question: {research_question}. Identify supporting and "
+"conflicting evidence, overall conclusions, methodologies, and key limitations. "
+"Compare findings across studies, highlighting areas of agreement, disagreement, "
+"recurring patterns, and methodological differences rather than summarizing papers "
+"individually. Support every substantive claim with citations to the retrieved papers "
+"using Harvard-style in-text referencing (e.g., Smith, 2024 or Smith and Jones, 2024)."
+" Base the synthesis exclusively on the provided evidence and explicitly identify "
+"areas where the evidence is insufficient, inconsistent, or inconclusive."
 )
 
 DEBUG_DUMP_INSIGHTS = os.environ.get("DEBUG_DUMP_INSIGHTS", "").lower() in ("1", "true", "yes")
@@ -56,6 +63,20 @@ class ResearchObjectives(BaseModel):
             "each phrased as a short goal (e.g., 'Measure the extent of generative "
             "AI use among university students')."
         )
+    )
+
+
+class ResearchFindings(BaseModel):
+    supporting_evidence: str = Field(
+        description="Evidence across the papers that supports the research question, with Harvard-style citations."
+    )
+    conflicting_evidence: str = Field(
+        description="Evidence across the papers that conflicts or disagrees, with Harvard-style citations."
+    )
+    main_conclusions: str = Field(description="The overall conclusions drawn from synthesizing the evidence.")
+    methodology: str = Field(description="The methodologies used across the papers, compared where relevant.")
+    limitations: str = Field(
+        description="Key limitations of the evidence, including gaps, inconsistencies, or inconclusive areas."
     )
 
 
@@ -113,7 +134,7 @@ def _format_authors(authors: list[Author] | None) -> str:
     return ", ".join(names) if names else "Unknown"
 
 
-def analyze_findings(state: SupervisorState, config: RunnableConfig) -> dict:
+def synthesize_findings(state: SupervisorState, config: RunnableConfig) -> dict:
     """Step 4: once the gathered papers are deemed reliable, synthesize their findings into insights."""
     papers = state.get("papers") or []
     if not papers:
@@ -125,21 +146,18 @@ def analyze_findings(state: SupervisorState, config: RunnableConfig) -> dict:
         for paper in papers
     )
     print(f"Analyzing {len(papers)} reliable papers and identifying insights")
-    response = model.invoke(
+    findings_model = model.with_structured_output(ResearchFindings)
+    output = findings_model.invoke(
         [
-            {"role": "system", "content": ANALYZE_FINDINGS_PROMPT},
+            {"role": "system", "content": SYNTHESIZE_FINDINGS_PROMPT.format(research_question=state["request"])},
             {"role": "user", "content": papers_text},
         ],
         config=config,
     )
+    insights = cast(ResearchFindings, output).model_dump()
     print("Completed analysis of retrieved papers")
-    # dump raw LLM output for debugging formatting/content issues
-    if DEBUG_DUMP_INSIGHTS:
-        debug_dir = Path(__file__).resolve().parent.parent / "debug"
-        debug_dir.mkdir(exist_ok=True)
-        (debug_dir / "insights.md").write_text(response.content)
 
-    return {"insights": response.content}
+    return {"insights": insights}
 
 
 def retry_retrieval(state: SupervisorState) -> dict:
@@ -152,7 +170,7 @@ def retry_retrieval(state: SupervisorState) -> dict:
 def should_retry_retrieval(state: SupervisorState) -> str:
     """Analyze findings once reliable; otherwise retry retrieval once before giving up."""
     if state.get("quality_feedback") == RELIABLE_DESCRIPTION:
-        return "analyze_findings"
+        return "synthesize_findings"
     if state.get("retry_count", 0) >= MAX_RETRIEVAL_RETRIES:
         return END
     return "retry_retrieval"
@@ -162,16 +180,16 @@ _graph = StateGraph(SupervisorState)
 _graph.add_node("define_objectives", define_objectives)
 _graph.add_node("call_retrieval_agent", call_retrieval_agent)
 _graph.add_node("call_evidence_analysis_agent", call_evidence_analysis_agent)
-_graph.add_node("analyze_findings", analyze_findings)
+_graph.add_node("synthesize_findings", synthesize_findings)
 _graph.add_node("retry_retrieval", retry_retrieval)
 
 _graph.add_edge(START, "define_objectives")
 _graph.add_edge("define_objectives", "call_retrieval_agent")
 _graph.add_edge("call_retrieval_agent", "call_evidence_analysis_agent")
 _graph.add_conditional_edges(
-    "call_evidence_analysis_agent", should_retry_retrieval, ["analyze_findings", "retry_retrieval", END]
+    "call_evidence_analysis_agent", should_retry_retrieval, ["synthesize_findings", "retry_retrieval", END]
 )
-_graph.add_edge("analyze_findings", END)
+_graph.add_edge("synthesize_findings", END)
 _graph.add_edge("retry_retrieval", "call_retrieval_agent")
 supervisor_graph = _graph.compile()
 

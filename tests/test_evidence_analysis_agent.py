@@ -3,7 +3,7 @@ from datetime import date
 
 import evidence_analysis_agent as evidence_analysis_agent_module
 from evidence_analysis_agent import assess_evidence_quality
-from search_tools import Journal, Paper
+from search_api import Journal, Paper
 
 
 def _make_paper(**overrides) -> Paper:

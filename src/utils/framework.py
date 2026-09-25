@@ -12,7 +12,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 
-from search_tools import Paper
+from search_api import Paper
 
 model = ChatOllama(
     model="qwen3:14b",

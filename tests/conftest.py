@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-import search_tools
+import search_api
 
 
 class _MockSemanticScholarHandler(BaseHTTPRequestHandler):
@@ -66,7 +66,7 @@ def mock_semantic_scholar_server(monkeypatch):
     thread.start()
 
     host, port = server.server_address
-    monkeypatch.setattr(search_tools, "SEMANTIC_SCHOLAR_API_URL", f"http://{host}:{port}/graph/v1/paper/search")
+    monkeypatch.setattr(search_api, "SEMANTIC_SCHOLAR_API_URL", f"http://{host}:{port}/graph/v1/paper/search")
 
     yield
 
@@ -82,7 +82,7 @@ def mock_semantic_scholar_usage_limit_server(monkeypatch):
     thread.start()
 
     host, port = server.server_address
-    monkeypatch.setattr(search_tools, "SEMANTIC_SCHOLAR_API_URL", f"http://{host}:{port}/graph/v1/paper/search")
+    monkeypatch.setattr(search_api, "SEMANTIC_SCHOLAR_API_URL", f"http://{host}:{port}/graph/v1/paper/search")
 
     yield
 

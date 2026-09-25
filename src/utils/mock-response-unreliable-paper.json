@@ -1,0 +1,47 @@
+{
+    "total": 3421,
+    "offset": 0,
+    "next": 10,
+    "data": [
+        {
+            "paperId": "a8e4e6d432403c6fe22a08d767660e1c9762517b",
+            "title": "An Integrated Approach of PLS-SEM, Machine Learning, and SHAP to Predict the Adverse Effects of Generative AI Tools on Students’ Academic Performance in Higher Education Institutions",
+            "venue": "2026 5th International Conference on Electrical, Computer & Telecommunication Engineering (ICECTE)",
+            "year": 1990,
+            "referenceCount": 3,
+            "citationCount": 3,
+            "openAccessPdf": {
+                "url": "",
+                "status": null,
+                "license": null,
+                "disclaimer": "Notice: Paper or abstract available at https://api.unpaywall.org/v2/10.1109/ICECTE69292.2026.11429359?email=<INSERT_YOUR_EMAIL> or https://doi.org/10.1109/ICECTE69292.2026.11429359, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+            },
+            "publicationTypes": [
+                "xxx"
+            ],
+            "authors": [
+                {
+                    "authorId": "114238176",
+                    "name": "Mohammad Manjur Alam"
+                },
+                {
+                    "authorId": "2354898130",
+                    "name": "M. Alauddin"
+                },
+                {
+                    "authorId": "46656955",
+                    "name": "Mohammad Aktaruzzaman Khan"
+                },
+                {
+                    "authorId": null,
+                    "name": "Syed Md. Hasib Ahsan"
+                },
+                {
+                    "authorId": "2205907967",
+                    "name": "Arfanul Islam"
+                }
+            ],
+            "abstract": "This study examines the destructive effects of generative AI (GAI) technologies on the academic performance of university students. Data were collected from 317 students at three public, four private and one Malaysian university using a structured questionnaire based on a 5-point Likert scale. The results of PLS-SEM algorithms reveal that AI dependency inception (ACI) has a significant positive effect on both adverse academic performance (AAP) (β = 0.17, t = 4.06, p < 0.001, 95% CI [0.09, 0.25]), and cognitive skills reduction (CSR) (β = 0.16, t = 2.85, p < 0.001, 95% CI [0.057, 0.283]). The mediation analysis showed that CSR mediates the relationship between ACI and AAP (β = 0.08, t = 2.83, p < 0.01, 95% CI [0.03, 0.15]). It was found that perceived institutional norms (PIN) influence AAP through technological distraction (TDN) (β = 0.07, t = 2.88, p < 0.01, 95% CI [0.03, 0.12]). Furthermore, we trained nine ML models to obtain predictions of AAP based on ACI, PIN, CSR and TDN features. It was found that Random Forest and Gradient Boosting performed the best in the metrics compared to other base models. The SHAP analysis showed that GAI tools were most strongly influenced by CSR, followed by TDN, PIN and ACI. The study emphasizes the need for logical AI integration, digital literacy and institutional policy measures to alleviate the overlooked academic implications of GAI usage in higher education institutions (HEIs)."
+        }
+    ]
+}

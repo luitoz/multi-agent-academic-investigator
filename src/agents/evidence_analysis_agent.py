@@ -9,7 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
 from framework import extract_tool_results, model, shallow_paper_json
-from search_tools import Paper
+from search_api import Paper
 
 EVALUATE_PAPERS_QUALITY_PROMPT = (
     "You are an evidence quality investigator. Given a list of papers, you should assess whether "
@@ -19,7 +19,7 @@ EVALUATE_PAPERS_QUALITY_PROMPT = (
 
 # Quality thresholds for assess_evidence_quality; tests may monkeypatch these attributes.
 MAX_PUBLICATION_AGE_YEARS = 3
-MIN_REFERENCE_COUNT = 10
+MIN_REFERENCE_COUNT = 1
 MIN_CITATION_COUNT = 1
 RELIABLE_DESCRIPTION = 'reliable'
 UNRELIABLE_DESCRIPTION = 'unreliable'

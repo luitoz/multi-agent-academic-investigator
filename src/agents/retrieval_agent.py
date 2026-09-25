@@ -11,10 +11,10 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from framework import model
-from search_tools import Paper, search_papers
+from search_api import Paper, search_papers
 
 # Default dimension count for real execution; tests may monkeypatch this attribute.
-NUM_DIMENSIONS = 1
+NUM_DIMENSIONS = 2
 
 
 def _load_stopwords() -> set[str]:
@@ -30,10 +30,19 @@ _STOPWORDS = _load_stopwords()
 
 
 def _identify_dimensions_prompt(num_dimensions: int) -> str:
+    if num_dimensions == 1:
+        return (
+            "You are an evidence retrieval assistant. Given a research objective expressed in natural "
+            "language, identify exactly one distinct dimension that should be investigated to comprehensively"
+            " address the research objective. Specify the dimension clearly and concisely, with sufficient "
+            "detail to guide evidence retrieval."
+        )
     return (
-        "You are an evidence retrieval assistant. Given a natural language research "
-        f"request, identify exactly {num_dimensions} distinct dimensions that should be covered to "
-        "comprehensively accomplish the research objectives. Each dimension should be specified clearly and concisely."
+        "You are an evidence retrieval assistant. Given a research objective expressed in natural language,"
+        f" identify exactly {num_dimensions} distinct dimensions that should be investigated to comprehensively"
+        " address the research objective. Specify each dimension clearly and concisely, with sufficient detail"
+        " to guide evidence retrieval. Ensure that the dimensions are meaningfully distinct and minimize "
+        "conceptual overlap."
     )
 
 
@@ -48,12 +57,20 @@ class SearchDimensions(BaseModel):
 
 def _build_search_dimensions_schema(num_dimensions: int) -> type[BaseModel]:
     """Build a schema whose description reflects `num_dimensions` (kept in sync when NUM_DIMENSIONS is overridden)."""
+    if num_dimensions == 1:
+        description = (
+            "Exactly one distinct dimension covering the research objectives, "
+            "phrased as a short topic (e.g., 'generative AI use among university students')."
+        )
+    else:
+        description = (
+            f"Exactly {num_dimensions} distinct dimensions covering the research objectives, "
+            "each phrased as a short topic (e.g., 'generative AI use among university students')."
+        )
+
     class _SearchDimensions(BaseModel):
         dimensions: list[str] = Field(
-            description=(
-                f"Exactly {num_dimensions} distinct dimensions covering the research objectives, "
-                "each phrased as a short topic (e.g., 'generative AI use among university students')."
-            )
+            description=description, min_length=num_dimensions, max_length=num_dimensions
         )
 
     return _SearchDimensions

@@ -5,7 +5,7 @@ import pytest
 from evidence_analysis_agent import QUESTIONABLE_DESCRIPTION, RELIABLE_DESCRIPTION, UNRELIABLE_DESCRIPTION
 
 from evidence_analysis_agent import manage_evidence_analysis
-from search_tools import Journal, Paper
+from search_api import Journal, Paper
 @pytest.mark.integration
 
 class TestManageEvidenceAnalysis:

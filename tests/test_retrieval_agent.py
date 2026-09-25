@@ -16,7 +16,7 @@ from retrieval_agent import (
     manage_search,
     search_dimensions,
 )
-from search_tools import Paper, search_papers
+from search_api import Paper, search_papers
 
 
 
