@@ -122,4 +122,7 @@ def search_papers(
             raise RuntimeError(f"search_papers returned invalid JSON for query {query!r}: {exc}") from exc
 
     assert result is not None  # loop above always either sets result or raises
-    return [Paper(**paper) for paper in result.get("data", []) or []]
+    papers = result.get("data", []) or []
+    if not papers:
+        print(f"WARNING: search_papers got a 200 response with no papers for query {query!r}")
+    return [Paper(**paper) for paper in papers]

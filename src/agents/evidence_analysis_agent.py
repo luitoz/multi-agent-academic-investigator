@@ -2,20 +2,13 @@
 from datetime import date
 import json
 
-from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-from framework import extract_tool_results, model, shallow_paper_json
+from framework import shallow_paper_json
 from search_api import Paper
-
-EVALUATE_PAPERS_QUALITY_PROMPT = (
-    "You are an evidence quality investigator. Given a list of papers, you should assess whether "
-    "those are reliable sources that can support rigorous research. Call assess_evidence_quality "
-    "for each paper, provide a quality assessment in clear natural language."
-)
 
 # Quality thresholds for assess_evidence_quality; tests may monkeypatch these attributes.
 MAX_PUBLICATION_AGE_YEARS = 3
@@ -73,36 +66,20 @@ def assess_evidence_quality(paper: Paper) -> str:
     return verdict
 
 
-evidence_quality_agent = create_agent(
-    model,
-    tools=[assess_evidence_quality],
-    system_prompt=EVALUATE_PAPERS_QUALITY_PROMPT,
-)
-
-
 class EvidenceAnalysisState(TypedDict):
     papers: list[Paper]
     quality_feedback: str
-    messages: list
 
-
+""" implementation decision: make evidence quality assessment fully deterministic to
+  economize token usage and reduce response time. """
 def assess_evidence_quality_node(state: EvidenceAnalysisState, config: RunnableConfig) -> dict:
-    """Let the evidence quality agent assess the gathered papers via the assess_evidence_quality tool."""
+    """Call the assess_evidence_quality tool directly for each paper, without going through an LLM."""
     papers = state.get("papers") or []
     if not papers:
         raise RuntimeError("No papers were provided to assess evidence quality.")
 
-    # pass the raw paper JSON so the LLM can call the tool with matching arguments
-    papers_text = "\n\n".join(paper.model_dump_json() for paper in papers)
     print(f"Assessing evidence quality for {len(papers)} papers")
-    result = evidence_quality_agent.invoke(
-        {"messages": [{"role": "user", "content": papers_text}]},
-        config=config,
-    )
-    messages = result["messages"]
-    tool_results = extract_tool_results(messages, "assess_evidence_quality")
-    if not tool_results:
-        raise RuntimeError("assess_evidence_quality tool was never called.")
+    tool_results = [assess_evidence_quality.invoke({"paper": paper}, config=config) for paper in papers]
     if all(r == RELIABLE_DESCRIPTION for r in tool_results):
         quality_feedback = RELIABLE_DESCRIPTION
     elif all(r == UNRELIABLE_DESCRIPTION for r in tool_results):
@@ -110,7 +87,7 @@ def assess_evidence_quality_node(state: EvidenceAnalysisState, config: RunnableC
     else:
         quality_feedback = QUESTIONABLE_DESCRIPTION
     print(f"Evidence quality assessment for {len(papers)} papers completed with feedback: {quality_feedback}")
-    return {"quality_feedback": quality_feedback, "messages": messages}
+    return {"quality_feedback": quality_feedback}
 
 
 def build_evidence_analysis_graph() -> StateGraph:

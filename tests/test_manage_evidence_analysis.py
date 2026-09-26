@@ -1,17 +1,14 @@
-"""Runs the whole compiled graph (assess_evidence_quality -> END) against the real model,
-letting it decide when to call the assess_evidence_quality tool."""
-import pytest
-
+"""Runs the whole compiled graph (assess_evidence_quality -> END), which calls the
+assess_evidence_quality tool directly for each paper without going through an LLM."""
 from evidence_analysis_agent import QUESTIONABLE_DESCRIPTION, RELIABLE_DESCRIPTION, UNRELIABLE_DESCRIPTION
 
 from evidence_analysis_agent import manage_evidence_analysis
 from search_api import Journal, Paper
-@pytest.mark.integration
+
 
 class TestManageEvidenceAnalysis:
     def test_assesses_quality_of_gathered_papers_as_reliable(self) -> None:
-        """Runs the whole compiled graph (assess_evidence_quality -> END) against the real model,
-        letting it decide when to call the assess_evidence_quality tool."""
+        """All papers passing every quality check should yield an overall reliable verdict."""
         papers = [
             Paper(
                 paperId="paper-1",

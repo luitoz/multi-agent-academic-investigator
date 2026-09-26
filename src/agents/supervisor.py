@@ -50,7 +50,8 @@ SYNTHESIZE_FINDINGS_PROMPT = (
 "individually. Support every substantive claim with citations to the retrieved papers "
 "using Harvard-style in-text referencing (e.g., Smith, 2024 or Smith and Jones, 2024)."
 " Base the synthesis exclusively on the provided evidence and explicitly identify "
-"areas where the evidence is insufficient, inconsistent, or inconclusive."
+"areas where the evidence is insufficient, inconsistent, or inconclusive. "
+"Be concise: keep each section to 2-3 sentences."
 )
 
 DEBUG_DUMP_INSIGHTS = os.environ.get("DEBUG_DUMP_INSIGHTS", "").lower() in ("1", "true", "yes")
@@ -68,15 +69,22 @@ class ResearchObjectives(BaseModel):
 
 class ResearchFindings(BaseModel):
     supporting_evidence: str = Field(
-        description="Evidence across the papers that supports the research question, with Harvard-style citations."
+        description="Evidence across the papers that supports the research question, with Harvard-style citations. "
+        "2-3 sentences."
     )
     conflicting_evidence: str = Field(
-        description="Evidence across the papers that conflicts or disagrees, with Harvard-style citations."
+        description="Evidence across the papers that conflicts or disagrees, with Harvard-style citations. "
+        "2-3 sentences."
     )
-    main_conclusions: str = Field(description="The overall conclusions drawn from synthesizing the evidence.")
-    methodology: str = Field(description="The methodologies used across the papers, compared where relevant.")
+    main_conclusions: str = Field(
+        description="The overall conclusions drawn from synthesizing the evidence. 2-3 sentences."
+    )
+    methodology: str = Field(
+        description="The methodologies used across the papers, compared where relevant. 2-3 sentences."
+    )
     limitations: str = Field(
-        description="Key limitations of the evidence, including gaps, inconsistencies, or inconclusive areas."
+        description="Key limitations of the evidence, including gaps, inconsistencies, or inconclusive areas. "
+        "2-3 sentences."
     )
 
 
@@ -155,7 +163,7 @@ def synthesize_findings(state: SupervisorState, config: RunnableConfig) -> dict:
         config=config,
     )
     insights = cast(ResearchFindings, output).model_dump()
-    print("Completed analysis of retrieved papers")
+    print("Completed analysis of retrieved papers with insights: ", insights)
 
     return {"insights": insights}
 
