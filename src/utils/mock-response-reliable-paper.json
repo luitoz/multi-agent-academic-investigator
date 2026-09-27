@@ -24,6 +24,9 @@
                 "volume": "1",
                 "pages": "1-6"
             },
+            "externalIds": {
+                "DOI": "10.1109/ICECTE69292.2026.11429359"
+            },
             "authors": [
                 {
                     "authorId": "114238176",

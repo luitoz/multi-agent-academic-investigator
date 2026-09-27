@@ -36,6 +36,10 @@ class TestManageSearch:
         assert result["papers"][0].authors is not None
         assert result["papers"][0].authors[0].name == "Mock Author"
         assert result["papers"][0].authors[0].authorId == "mock-author-1"
+        assert result["papers"][0].externalIds is not None
+        assert result["papers"][0].externalIds.DOI == f"10.1234/mock.{result['queries'][0]}"
+        assert result["papers"][0].externalIds.ArXiv == f"arxiv:mock.{result['queries'][0]}"
+        assert result["papers"][0].externalIds.PubMed == f"pmid:mock.{result['queries'][0]}"
 
     def test_search_covers_multiple_dimensions_using_mock_endpoint_server_with_error_response(
             self, monkeypatch, mock_semantic_scholar_usage_limit_server) -> None:

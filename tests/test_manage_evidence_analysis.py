@@ -3,7 +3,7 @@ assess_evidence_quality tool directly for each paper without going through an LL
 from evidence_analysis_agent import QUESTIONABLE_DESCRIPTION, RELIABLE_DESCRIPTION, UNRELIABLE_DESCRIPTION
 
 from evidence_analysis_agent import manage_evidence_analysis
-from search_api import Journal, Paper
+from search_api import ExternalId, Journal, Paper
 
 
 class TestManageEvidenceAnalysis:
@@ -22,6 +22,7 @@ class TestManageEvidenceAnalysis:
                 citationCount=17,
                 publicationTypes=["JournalArticle"],
                 journal=Journal(name="Journal of Educational Technology", volume="12", pages="1-20"),
+                externalIds=ExternalId(DOI="10.1234/paper-1"),
                 venue="Journal of Educational Technology",
             ),
             Paper(
@@ -36,6 +37,7 @@ class TestManageEvidenceAnalysis:
                 citationCount=12,
                 publicationTypes=["Conference"],
                 journal=Journal(name="Conference on AI in Academia", volume="5", pages="100-115"),
+                externalIds=ExternalId(DOI="10.1234/paper-3"),
                 venue="Conference on AI in Academia",
             ),
         ]
@@ -85,6 +87,7 @@ class TestManageEvidenceAnalysis:
                 citationCount=17,
                 publicationTypes=["JournalArticle"],
                 journal=Journal(name="Journal of Educational Technology", volume="12", pages="1-20"),
+                externalIds=ExternalId(DOI="10.1234/paper-1"),
                 venue="Journal of Educational Technology",
             ),
             Paper(

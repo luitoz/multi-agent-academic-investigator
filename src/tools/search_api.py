@@ -8,10 +8,10 @@ import requests
 from langchain.tools import tool
 from pydantic import BaseModel
 
-
-SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 MOCK_SEMANTIC_SCHOLAR_API_URL = "http://localhost:8000/paper/search"
-RATE_LIMIT_WAIT_SECONDS = 60
+SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
+# SEMANTIC_SCHOLAR_API_URL = MOCK_SEMANTIC_SCHOLAR_API_URL
+RATE_LIMIT_WAIT_SECONDS = 120
 
 _key_selection_lock = threading.Lock()
 _key_selection_counter = itertools.count()
@@ -44,10 +44,18 @@ class Author(BaseModel):
     name: str | None = None
     authorId: str | None = None
 
+class ExternalId(BaseModel):
+    """External identifiers for a paper, as returned by Semantic Scholar."""
+
+    DOI: str | None = None
+    ArXiv: str | None = None
+    PubMed: str | None = None
+
 class Paper(BaseModel):
     """A single paper record, restricted to the fields requested from Semantic Scholar."""
 
     paperId: str | None = None
+    externalIds: ExternalId | None = None
     title: str | None = None
     abstract: str | None = None
     year: int | None = None
@@ -81,7 +89,7 @@ def search_papers(
     query_params = {
         "query": query,
         "limit": 1,
-        "fields": "paperId,title,abstract,year,referenceCount,citationCount,publicationTypes,journal,venue,authors"
+        "fields": "paperId,title,abstract,year,referenceCount,citationCount,publicationTypes,journal,venue,authors,externalIds"
     }
 
     # Retry with a different key on a 429 (rate limited), up to once per configured key. If every

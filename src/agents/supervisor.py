@@ -17,6 +17,7 @@ from typing_extensions import NotRequired, TypedDict
 
 from evidence_analysis_agent import manage_evidence_analysis
 from framework import model
+from reporting_agent import manage_reporting
 from retrieval_agent import manage_search
 from search_api import Author, Paper
 
@@ -29,6 +30,8 @@ class SupervisorState(TypedDict):
     quality_feedback: NotRequired[str]
     retry_count: NotRequired[int]
     dimensions: NotRequired[list[str]]
+    briefing: NotRequired[str]
+    report_path: NotRequired[str]
 
 
 NUM_OBJECTIVES = 1
@@ -54,7 +57,6 @@ SYNTHESIZE_FINDINGS_PROMPT = (
 "Be concise: keep each section to 2-3 sentences."
 )
 
-DEBUG_DUMP_INSIGHTS = os.environ.get("DEBUG_DUMP_INSIGHTS", "").lower() in ("1", "true", "yes")
 
 
 class ResearchObjectives(BaseModel):
@@ -168,6 +170,35 @@ def synthesize_findings(state: SupervisorState, config: RunnableConfig) -> dict:
     return {"insights": insights}
 
 
+def _papers_for_reporting(papers: list[Paper]) -> list[dict]:
+    """Reduce papers to the bibliographic fields the reporting agent needs to build references."""
+    return [
+        {
+            "authors": _format_authors(paper.authors),
+            "title": paper.title,
+            "year": paper.year,
+            "journal": paper.journal.name if paper.journal else None,
+            "volume": paper.journal.volume if paper.journal else None,
+            "pages": paper.journal.pages if paper.journal else None,
+            "doi": paper.externalIds.DOI if paper.externalIds else None,
+        }
+        for paper in papers
+    ]
+
+
+def call_reporting_agent(state: SupervisorState, config: RunnableConfig) -> dict:
+    """Step 5: hand the synthesized insights to the reporting sub-agent to write a natural language briefing to disk."""
+    print("Calling reporting agent to write a research briefing from the synthesized insights")
+    result = manage_reporting.invoke(
+        {
+            "insights": state.get("insights", {}),
+            "papers": _papers_for_reporting(state.get("papers") or []),
+        },
+        config=config,
+    )
+    return {"briefing": result["briefing"], "report_path": result["docx_path"]}
+
+
 def retry_retrieval(state: SupervisorState) -> dict:
     """Bump the retry counter before re-invoking the retrieval agent."""
     retry_count = state.get("retry_count", 0) + 1
@@ -189,6 +220,7 @@ _graph.add_node("define_objectives", define_objectives)
 _graph.add_node("call_retrieval_agent", call_retrieval_agent)
 _graph.add_node("call_evidence_analysis_agent", call_evidence_analysis_agent)
 _graph.add_node("synthesize_findings", synthesize_findings)
+_graph.add_node("call_reporting_agent", call_reporting_agent)
 _graph.add_node("retry_retrieval", retry_retrieval)
 
 _graph.add_edge(START, "define_objectives")
@@ -197,7 +229,8 @@ _graph.add_edge("call_retrieval_agent", "call_evidence_analysis_agent")
 _graph.add_conditional_edges(
     "call_evidence_analysis_agent", should_retry_retrieval, ["synthesize_findings", "retry_retrieval", END]
 )
-_graph.add_edge("synthesize_findings", END)
+_graph.add_edge("synthesize_findings", "call_reporting_agent")
+_graph.add_edge("call_reporting_agent", END)
 _graph.add_edge("retry_retrieval", "call_retrieval_agent")
 supervisor_graph = _graph.compile()
 

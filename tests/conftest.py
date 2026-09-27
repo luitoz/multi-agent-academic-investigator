@@ -29,6 +29,7 @@ class _MockSemanticScholarHandler(BaseHTTPRequestHandler):
                     "journal": {"name": "Mock Journal", "volume": "1", "pages": "1-10"},
                     "authors": [{"name": "Mock Author", "authorId": "mock-author-1"}],
                     "venue": "Mock Venue",
+                    "externalIds": {"DOI": f"10.1234/mock.{query}", "ArXiv": f"arxiv:mock.{query}", "PubMed": f"pmid:mock.{query}"}
                 }
             ],
         }

@@ -1,19 +1,22 @@
 [project]
 name = "lang-graph-demo"
 version = "0.1.0"
-description = "LangGraph multi-agent supervisor demo (calendar agent)"
+description = "LangGraph multi-agent supervisor"
 requires-python = ">=3.11"
 dependencies = [
     "langchain>=1.4.0",
     "langchain-core>=1.6.1",
     "langchain-ollama>=1.1.0",
     "langgraph>=1.2.11",
+    "langgraph-cli>=0.4.4",
+    "langgraph-api>=0.4.0",
     "typing-extensions>=4.16.0",
     "nltk>=3.9",
     "requests>=2.31",
     "python-dotenv>=1.0",
     "pytest>=8.0",
     "pytest-cov>=7.0",
+    "pypandoc-binary>=1.13",
 ]
 
 [build-system]

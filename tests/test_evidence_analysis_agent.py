@@ -3,7 +3,7 @@ from datetime import date
 
 import evidence_analysis_agent as evidence_analysis_agent_module
 from evidence_analysis_agent import assess_evidence_quality
-from search_api import Journal, Paper
+from search_api import ExternalId, Journal, Paper
 
 
 def _make_paper(**overrides) -> Paper:
@@ -16,6 +16,7 @@ def _make_paper(**overrides) -> Paper:
         citationCount=5,
         publicationTypes=["JournalArticle"],
         journal=Journal(name="Sample Journal", volume="1", pages="1-10"),
+        externalIds=ExternalId(DOI="10.1234/sample"),
         venue="Sample Venue",
     )
     defaults.update(overrides)
@@ -43,6 +44,10 @@ class TestAssessEvidenceQuality:
 
     def test_conference_publication_type_counts_as_peer_reviewed(self):
         paper = _make_paper(publicationTypes=["Conference"], journal=None)
+        assert assess_evidence_quality.func(paper) == evidence_analysis_agent_module.QUESTIONABLE_DESCRIPTION
+
+    def test_returns_questionable_when_doi_missing(self):
+        paper = _make_paper(externalIds=None)
         assert assess_evidence_quality.func(paper) == evidence_analysis_agent_module.QUESTIONABLE_DESCRIPTION
 
     def test_respects_monkeypatched_thresholds(self, monkeypatch):

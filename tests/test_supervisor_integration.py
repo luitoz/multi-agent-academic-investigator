@@ -43,7 +43,7 @@ def ensure_mock_server():
     thread.join()
 
 
-# it must be run at class level as first test case depends on the the another one
+# IMPORTANT: it must be run at class level as first test case depends on the the another one
 @pytest.mark.integration
 class TestSupervisorGraph:
     def test_full_graph_succeeds_with_reliable_evidence_on_first_try(
@@ -75,6 +75,8 @@ class TestSupervisorGraph:
         assert len(result["papers"]) > 0
         assert result["quality_feedback"] == evidence_analysis_agent.RELIABLE_DESCRIPTION
         assert result.get("retry_count", 0) == 0
+        assert result.get("report_path")
+        assert result.get("briefing")
 
     def test_full_graph_succeeds_with_unreliable_evidence_on_first_try_then_retry(
         self, monkeypatch
@@ -95,10 +97,11 @@ class TestSupervisorGraph:
             )
         )
         assert result
-        assert "insights" in result #TODO it fails here
-        assert len(result["insights"]) > 0
         assert "papers" in result
         assert len(result["papers"]) > 0
         assert result["quality_feedback"] == evidence_analysis_agent.RELIABLE_DESCRIPTION
         assert result.get("retry_count", 0) == 1
+        assert result.get("insights")
+        assert result.get("report_path")
+        assert result.get("briefing")
 

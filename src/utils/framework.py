@@ -1,9 +1,4 @@
 """Generic LangGraph plumbing shared by the retry-capable agent graphs.
-
-This module has no knowledge of calendars, emails, or any other domain concept -
-it only knows how to wire up a "run an agent, validate its tool output, retry if
-needed" loop, and how to pull an agent's ground-truth tool output out of its
-message history.
 """
 from typing import Callable
 

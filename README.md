@@ -1,14 +1,14 @@
 # LangGraph Multi-Agent Demo
 
-A LangGraph supervisor agent that delegates to a calendar sub-agent, backed by
+A LangGraph supervisor agent that delegates to multiple sub-agents, backed by
 a local Ollama model.
 
 ## Project layout
 
-- `src/utils/framework.py` — shared model config, `build_retry_graph`, `extract_tool_result`.
-- `src/calendar_agent.py` — calendar sub-agent and `schedule_event` tool.
-- `src/supervisor.py` — supervisor agent that routes requests to the sub-agent.
-- `src/mas_demo.py` / `demo.py` — entry points for running the demo.
+- `src/agents/supervisor.py` — supervisor agent that routes requests to the sub-agents.
+- `src/agents/retrieval_agent.py`, `calendar_agent.py`, `evidence_analysis_agent.py`, `reporting_agent.py` — sub-agents.
+- `src/tools/search_api.py` — Semantic Scholar search tool.
+- `src/utils/framework.py` — shared model config, `extract_tool_result`.
 - `tests/` — pytest unit tests.
 
 ## Setup
@@ -48,8 +48,8 @@ pytest
 Run a single file or test:
 
 ```bash
-pytest tests/test_calendar_agent.py
-pytest tests/test_calendar_agent.py::TestScheduleNode -v
+pytest tests/test_retrieval_agent.py
+pytest tests/test_retrieval_agent.py::TestScheduleNode -v
 ```
 
 Run the integration tests (requires a running Ollama server):
@@ -58,7 +58,6 @@ Run the integration tests (requires a running Ollama server):
 pytest -m integration tests/test_retrieval_agent_integration.py
 pytest -m integration tests/test_supervisor_integration.py
 
-pytest -m integration tests/test_calendar_agent_integration.py::TestScheduleGraph::test_full_retry_graph_schedules_event_when_no_duration
 ```
 
 Run all tests, including integration tests (requires a running Ollama server):
@@ -70,7 +69,7 @@ pytest -m "integration or not integration" -v
 
 Note: test files must be run through `pytest` (not `python
 tests/test_x.py` directly) — `pytest.ini` sets `pythonpath = src` so tests can
-`import calendar_agent` etc., and that setting only applies when pytest runs
+`import retrieval_agent` etc., and that setting only applies when pytest runs
 the collection.
 
 ## Debugging a test
@@ -89,15 +88,6 @@ Or add a `breakpoint()` call where you want to inspect state and run without
 pytest tests/test_retrieval_agent_integration.py -m integration -s -v --no-cov
 ```
 
-## Debugging the retrieval agent's insights
-
-Set `DEBUG_DUMP_INSIGHTS=1` to have `analyze_findings` (in
-`src/retrieval_agent.py`) write the raw LLM output to `debug/insights.md` on
-every run, useful for inspecting formatting/content issues:
-
-```bash
-DEBUG_DUMP_INSIGHTS=1 pytest -m integration tests/test_retrieval_agent_integration.py
-```
 
 ## local testing with LangSmith
 

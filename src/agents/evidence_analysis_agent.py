@@ -33,10 +33,11 @@ def _has_quality_metrics(paper: Paper) -> bool:
 
 
 def _has_complete_journal_info(paper: Paper) -> bool:
-    """Journal must report a name, volume, and pages."""
+    """Journal must report a name, volume, and pages, and the paper must have a DOI."""
     print(f"Journal info for paper '{paper.title}': {paper.journal}")
     journal = paper.journal
-    result = bool(journal and journal.name and journal.volume and journal.pages)
+    has_doi = bool(paper.externalIds and paper.externalIds.DOI)
+    result = bool(journal and journal.name and journal.volume and journal.pages and has_doi)
     print(f"Complete journal info for paper '{paper.title}': {result}")
     return result
 
@@ -56,7 +57,7 @@ def assess_evidence_quality(paper: Paper) -> str:
     checks = {
         "recent publication with enough references and citations": _has_quality_metrics(paper),
         "journal or conference publication type": _has_peer_reviewed_type(paper),
-        "complete journal name, volume, and pages": _has_complete_journal_info(paper),
+        "complete journal name, volume, pages, and DOI": _has_complete_journal_info(paper),
     }
     score = sum(checks.values())
     verdict = RELIABLE_DESCRIPTION if score == len(checks) else QUESTIONABLE_DESCRIPTION if score > 0 else UNRELIABLE_DESCRIPTION
