@@ -19,6 +19,26 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+## Environment variables
+
+Create a `.env` file in the repo root (already gitignored — never commit it)
+with your own values:
+
+```
+# automatic tracing using LangSmith
+LANGSMITH_API_KEY=<your-langsmith-api-key>
+LANGSMITH_TRACING=true
+LANGSMITH_PROJECT=lang-graph-demo
+
+# academic database api key
+# accepts a comma-separated list of keys for rate-limit rotation (see `src/tools/search_api.py`).
+SEMANTIC_SCHOLAR_API_KEY=<your-semantic-scholar-api-key>[,<another-key>...]
+```
+
+For LangSmith setup see: [https://docs.langchain.com/langsmith/observability-quickstart](https://docs.langchain.com/langsmith/observability-quickstart)
+
+For the Semantic Scholar env var you can use this value without quotes: 's2k-tGmv68Sl2blMwy1bx0JjGnfto3yjeFOg414UHTZX,s2k-wCyOT1Mra9x2FHyrtu63QY0rXS52K96YwIBeH4pm'
+
 The demo also expects a local [Ollama](https://ollama.com) server running
 with the `qwen3:14b` model (see `src/utils/framework.py`).
 
