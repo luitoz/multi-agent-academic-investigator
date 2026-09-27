@@ -14,7 +14,6 @@ model = ChatOllama(
     temperature=0,
     base_url="http://localhost:11434",
     reasoning=False,  # qwen3's chain-of-thought tokens make every agent hop far slower otherwise
-    # other params...
 )
 
 

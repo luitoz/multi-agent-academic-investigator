@@ -1,6 +1,7 @@
 """Evidence analysis sub-agent and the `manage_evidence_analysis` tool that exposes it to the supervisor."""
 from datetime import date
 import json
+import os
 
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
@@ -11,9 +12,10 @@ from framework import shallow_paper_json
 from search_api import Paper
 
 # Quality thresholds for assess_evidence_quality; tests may monkeypatch these attributes.
-MAX_PUBLICATION_AGE_YEARS = 3
-MIN_REFERENCE_COUNT = 1
-MIN_CITATION_COUNT = 1
+# Defaults can be overridden via environment variables.
+MAX_PUBLICATION_AGE_YEARS = int(os.environ.get("MAX_PUBLICATION_AGE_YEARS", 3))
+MIN_REFERENCE_COUNT = int(os.environ.get("MIN_REFERENCE_COUNT", 1))
+MIN_CITATION_COUNT = int(os.environ.get("MIN_CITATION_COUNT", 1))
 RELIABLE_DESCRIPTION = 'reliable'
 UNRELIABLE_DESCRIPTION = 'unreliable'
 QUESTIONABLE_DESCRIPTION = 'questionable'

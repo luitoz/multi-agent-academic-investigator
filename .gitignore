@@ -10,3 +10,4 @@ lang_graph_demo.egg-info/requires.txt
 lang_graph_demo.egg-info/SOURCES.txt
 lang_graph_demo.egg-info/top_level.txt
 target/
+logs/

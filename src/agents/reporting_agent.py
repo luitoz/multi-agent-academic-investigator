@@ -1,5 +1,5 @@
 """Reporting sub-agent and the `manage_reporting` tool that exposes it to the supervisor."""
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pypandoc
@@ -92,7 +92,7 @@ def generate_briefing(state: ReportingState, config: RunnableConfig) -> dict:
 
 def _default_output_path() -> str:
     """Build a timestamped default path under the repo-level `reports/` directory."""
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%z")
     return str(REPORTS_DIR / f"research_briefing_{timestamp}.md")
 
 

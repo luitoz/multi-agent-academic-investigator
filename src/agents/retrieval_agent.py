@@ -1,4 +1,5 @@
 """Retrieval sub-agent and the `manage_search` tool that exposes it to the supervisor."""
+import os
 import re
 from typing import Protocol, cast
 
@@ -14,7 +15,8 @@ from framework import model
 from search_api import Paper, search_papers
 
 # Default dimension count for real execution; tests may monkeypatch this attribute.
-NUM_DIMENSIONS = 2
+# Default can be overridden via the NUM_SEARCH_DIMENSIONS environment variable.
+NUM_SEARCH_DIMENSIONS = int(os.environ.get("NUM_SEARCH_DIMENSIONS", 2))
 
 
 def _load_stopwords() -> set[str]:
@@ -49,7 +51,7 @@ def _identify_dimensions_prompt(num_dimensions: int) -> str:
 class SearchDimensions(BaseModel):
     dimensions: list[str] = Field(
         description=(
-            f"Exactly {NUM_DIMENSIONS} distinct dimensions covering the research objectives, "
+            f"Exactly {NUM_SEARCH_DIMENSIONS} distinct dimensions covering the research objectives, "
             "each phrased as a short topic (e.g., 'generative AI use among university students')."
         )
     )
@@ -91,7 +93,7 @@ class RetrievalState(TypedDict):
 def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
     """Step 1: ask the LLM to break the request into distinct search dimensions."""
     print(f"Identifying dimensions for request: {state['request']}")
-    num_dimensions = NUM_DIMENSIONS
+    num_dimensions = NUM_SEARCH_DIMENSIONS
     schema = _build_search_dimensions_schema(num_dimensions)
     dimensions_model = model.with_structured_output(schema)
     output = cast(
@@ -104,7 +106,7 @@ def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
             config=config,
         ),
     )
-    print(f"Identified {NUM_DIMENSIONS} dimensions:")
+    print(f"Identified {NUM_SEARCH_DIMENSIONS} dimensions:")
     return {"dimensions": output.dimensions}
 
 

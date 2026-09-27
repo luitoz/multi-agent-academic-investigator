@@ -54,7 +54,7 @@ class TestSupervisorGraph:
         evidence analysis sub-agents, exercising the success path where the gathered papers are
         deemed reliable on the first try and no retrieval retry is needed."""
         # Keep the integration test cheap/fast; production keeps NUM_DIMENSIONS=2.
-        monkeypatch.setattr(retrieval_agent, "NUM_DIMENSIONS", 1)
+        monkeypatch.setattr(retrieval_agent, "NUM_SEARCH_DIMENSIONS", 1)
         monkeypatch.setattr(search_api, "SEMANTIC_SCHOLAR_API_URL", search_api.MOCK_SEMANTIC_SCHOLAR_API_URL)
         # Avoid flaky quality verdicts from the real model; only the retrieval/supervisor wiring is under test.
         # monkeypatch.setattr(evidence_analysis_agent.assess_evidence_quality, "func", 
@@ -86,7 +86,7 @@ class TestSupervisorGraph:
         evidence analysis sub-agents, exercising the success path where the gathered papers are
         deemed unreliable on the first try, triggering a retrieval retry, and then deemed reliable."""
         # Keep the integration test cheap/fast; production keeps NUM_DIMENSIONS=2.
-        monkeypatch.setattr(retrieval_agent, "NUM_DIMENSIONS", 1)
+        monkeypatch.setattr(retrieval_agent, "NUM_SEARCH_DIMENSIONS", 1)
         monkeypatch.setattr(search_api, "SEMANTIC_SCHOLAR_API_URL", search_api.MOCK_SEMANTIC_SCHOLAR_API_URL)
         result = supervisor_graph.invoke(
             SupervisorState(

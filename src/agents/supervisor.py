@@ -34,7 +34,8 @@ class SupervisorState(TypedDict):
     report_path: NotRequired[str]
 
 
-NUM_OBJECTIVES = 1
+# Default can be overridden via the NUM_RESEARCH_OBJECTIVES environment variable.
+NUM_RESEARCH_OBJECTIVES = int(os.environ.get("NUM_RESEARCH_OBJECTIVES", 1))
 # Retrieval is retried at most once if the gathered papers aren't deemed reliable.
 MAX_RETRIEVAL_RETRIES = 1
 
@@ -42,7 +43,7 @@ DEFINE_OBJECTIVES_PROMPT = (
     "You are an academic investigator assistant. Given a natural language research "
     "question, define exactly {num_objectives} research objectives, ordered by "
     "importance, needed to conduct the research on the user's research question."
-).format(num_objectives=NUM_OBJECTIVES)
+).format(num_objectives=NUM_RESEARCH_OBJECTIVES)
 
 SYNTHESIZE_FINDINGS_PROMPT = (
 "You are an evidence synthesis assistant. Given a set of retrieved academic papers, "
@@ -62,7 +63,7 @@ SYNTHESIZE_FINDINGS_PROMPT = (
 class ResearchObjectives(BaseModel):
     objectives: list[str] = Field(
         description=(
-            f"Exactly {NUM_OBJECTIVES} research objectives, ordered descending by importance, "
+            f"Exactly {NUM_RESEARCH_OBJECTIVES} research objectives, ordered descending by importance, "
             "each phrased as a short goal (e.g., 'Measure the extent of generative "
             "AI use among university students')."
         )
@@ -110,7 +111,7 @@ process of gathering relevant academic papers is handled efficiently and systema
 a clear separation of concerns between agents, allowing maintainability and extensibility.
 """
 def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict:
-    print(f"Calling retrieval agent to gather information for {NUM_OBJECTIVES} ordered research objectives")
+    print(f"Calling retrieval agent to gather information for {NUM_RESEARCH_OBJECTIVES} ordered research objectives")
     """Step 2: hand the research objectives to the retrieval sub-agent as one natural language request."""
     request = "find papers on this research objectives: " + " ".join(
         f"{objective}." for objective in state.get("objectives", [])
