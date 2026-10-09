@@ -123,7 +123,7 @@ All runs generate:
 
 ## Architecture
 
-![alt text](architecture.png)
+![alt text](images/architecture.png)
 
 ## Agents
 
@@ -164,6 +164,28 @@ Root:
 - `test_retrieval_agent.py` — unit tests for the retrieval agent's deterministic logic, with the LLM/search tool mocked.
 - `test_retrieval_agent_integration.py` — integration test running the retrieval agent end-to-end against the mock Semantic Scholar server.
 - `test_supervisor_integration.py` — integration test running the whole supervisor graph end-to-end.
+
+
+## Iterative development
+
+### [V1 - Capability](https://github.com/luitoz/multi-agent-academic-investigator/releases/tag/v1.0.0)
+
+Can the system retrieve academic evidence?
+
+
+![alt text](images/v1.png)
+
+### [V2 - Robustness](https://github.com/luitoz/multi-agent-academic-investigator/releases/tag/v2.0.0)
+
+Can the system detect poor evidence and adapt its search?
+
+![alt text](images/v2.png)
+
+### [V3 - Usability](https://github.com/luitoz/multi-agent-academic-investigator/releases/tag/v3.0.0)
+
+Can the system transform evidence into a traceable research briefing?
+
+![alt text](images/v3.png)
 
 ## Running tests
 

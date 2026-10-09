@@ -16,10 +16,14 @@ from pydantic import BaseModel, Field
 from typing_extensions import NotRequired, TypedDict
 
 from evidence_analysis_agent import manage_evidence_analysis
-from framework import model
+from framework import logger, model
 from reporting_agent import manage_reporting
 from retrieval_agent import manage_search
 from search_api import Author, Paper
+
+_ROOT_DIR = Path(__file__).resolve().parents[2]
+TARGET_DIR = _ROOT_DIR / "target"
+TARGET_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class SupervisorState(TypedDict):
@@ -37,7 +41,7 @@ class SupervisorState(TypedDict):
 # Default can be overridden via the NUM_RESEARCH_OBJECTIVES environment variable.
 NUM_RESEARCH_OBJECTIVES = int(os.environ.get("NUM_RESEARCH_OBJECTIVES", 1))
 # Retrieval is retried at most once if the gathered papers aren't deemed reliable.
-MAX_RETRIEVAL_RETRIES = 1
+MAX_RETRIEVAL_RETRIES = int(os.environ.get("MAX_RETRIEVAL_RETRIES", 1))
 
 DEFINE_OBJECTIVES_PROMPT = (
     "You are an academic investigator assistant. Given a natural language research "
@@ -93,7 +97,7 @@ class ResearchFindings(BaseModel):
 
 def define_objectives(state: SupervisorState, config: RunnableConfig) -> dict:
     """Step 1: ask the LLM to break the research question into N ordered research objectives."""
-    print(f"Defining research objectives for request: {state['request']}")
+    logger.info(f"Defining research objectives for request: {state['request']}")
     objectives_model = model.with_structured_output(ResearchObjectives)
     output = objectives_model.invoke(
         [
@@ -111,7 +115,7 @@ process of gathering relevant academic papers is handled efficiently and systema
 a clear separation of concerns between agents, allowing maintainability and extensibility.
 """
 def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict:
-    print(f"Calling retrieval agent to gather information for {NUM_RESEARCH_OBJECTIVES} ordered research objectives")
+    logger.info(f"Calling retrieval agent to gather information for {NUM_RESEARCH_OBJECTIVES} ordered research objectives")
     """Step 2: hand the research objectives to the retrieval sub-agent as one natural language request."""
     request = "find papers on this research objectives: " + " ".join(
         f"{objective}." for objective in state.get("objectives", [])
@@ -132,7 +136,7 @@ def call_retrieval_agent(state: SupervisorState, config: RunnableConfig) -> dict
 
 def call_evidence_analysis_agent(state: SupervisorState, config: RunnableConfig) -> dict:
     """Step 3: assess the reliability of the gathered papers via the evidence analysis sub-agent."""
-    print("Calling evidence analysis agent to assess quality of gathered papers")
+    logger.info("Calling evidence analysis agent to assess quality of gathered papers")
     result = manage_evidence_analysis.invoke({"papers": state.get("papers", [])}, config=config)
     return {"quality_feedback": result["quality_feedback"]}
 
@@ -156,7 +160,7 @@ def synthesize_findings(state: SupervisorState, config: RunnableConfig) -> dict:
         f"Abstract: {paper.abstract}"
         for paper in papers
     )
-    print(f"Analyzing {len(papers)} reliable papers and identifying insights")
+    logger.info(f"Analyzing {len(papers)} reliable papers and identifying insights")
     findings_model = model.with_structured_output(ResearchFindings)
     output = findings_model.invoke(
         [
@@ -166,7 +170,7 @@ def synthesize_findings(state: SupervisorState, config: RunnableConfig) -> dict:
         config=config,
     )
     insights = cast(ResearchFindings, output).model_dump()
-    print("Completed analysis of retrieved papers with insights: ", insights)
+    logger.info(f"Completed analysis of retrieved papers with insights: {insights}")
 
     return {"insights": insights}
 
@@ -189,7 +193,7 @@ def _papers_for_reporting(papers: list[Paper]) -> list[dict]:
 
 def call_reporting_agent(state: SupervisorState, config: RunnableConfig) -> dict:
     """Step 5: hand the synthesized insights to the reporting sub-agent to write a natural language briefing to disk."""
-    print("Calling reporting agent to write a research briefing from the synthesized insights")
+    logger.info("Calling reporting agent to write a research briefing from the synthesized insights")
     result = manage_reporting.invoke(
         {
             "insights": state.get("insights", {}),
@@ -203,7 +207,7 @@ def call_reporting_agent(state: SupervisorState, config: RunnableConfig) -> dict
 def retry_retrieval(state: SupervisorState) -> dict:
     """Bump the retry counter before re-invoking the retrieval agent."""
     retry_count = state.get("retry_count", 0) + 1
-    print(f"Gathered papers were not reliable; retrying retrieval (attempt {retry_count})")
+    logger.info(f"Gathered papers were not reliable; retrying retrieval (attempt {retry_count})")
     return {"retry_count": retry_count}
 
 

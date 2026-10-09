@@ -11,7 +11,7 @@ from nltk.corpus import stopwords
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-from framework import model
+from framework import logger, model
 from search_api import Paper, search_papers
 
 # Default dimension count for real execution; tests may monkeypatch this attribute.
@@ -92,7 +92,7 @@ class RetrievalState(TypedDict):
 
 def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
     """Step 1: ask the LLM to break the request into distinct search dimensions."""
-    print(f"Identifying dimensions for request: {state['request']}")
+    logger.info(f"Identifying dimensions for request: {state['request']}")
     num_dimensions = NUM_SEARCH_DIMENSIONS
     schema = _build_search_dimensions_schema(num_dimensions)
     dimensions_model = model.with_structured_output(schema)
@@ -106,7 +106,7 @@ def identify_dimensions(state: RetrievalState, config: RunnableConfig) -> dict:
             config=config,
         ),
     )
-    print(f"Identified {NUM_SEARCH_DIMENSIONS} dimensions:")
+    logger.info(f"Identified {NUM_SEARCH_DIMENSIONS} dimensions:")
     return {"dimensions": output.dimensions}
 
 
@@ -133,9 +133,9 @@ def _extract_papers(tool_results: list[list[Paper]]) -> list[Paper]:
 def search_dimensions(state: RetrievalState) -> dict:
     """Step 2: build one query per dimension, invoke search_papers once per query, and extract the usable papers."""
     queries = [_dimension_to_query(dimension) for dimension in state["dimensions"]]
-    print("Searching identified dimensions with tool")
+    logger.info("Searching identified dimensions with tool")
     tool_results = [search_papers.invoke({"query": query}) for query in queries]
-    print(f"Completed search for {len(queries)} queries")
+    logger.info(f"Completed search for {len(queries)} queries")
     papers = _extract_papers(tool_results)
     if not papers:
         raise RuntimeError("No paper titles or abstracts were available. Try another research question.")

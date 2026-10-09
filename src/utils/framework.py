@@ -7,6 +7,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, START, END
 
+from logging_config import logger  # noqa: F401  (re-exported for `from framework import logger`)
 from search_api import Paper
 
 model = ChatOllama(

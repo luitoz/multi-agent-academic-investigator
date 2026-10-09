@@ -9,7 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from typing_extensions import NotRequired, TypedDict
 
-from framework import model
+from framework import logger, model
 
 # Default location briefings are written to when the caller doesn't supply an output_path.
 REPORTS_DIR = Path(__file__).resolve().parents[2] / "target"
@@ -78,7 +78,7 @@ def generate_briefing(state: ReportingState, config: RunnableConfig) -> dict:
     if papers:
         user_content += "\n\nReferences source data:\n" + str(papers)
 
-    print("Generating natural language research briefing from insights")
+    logger.info("Generating natural language research briefing from insights")
     briefing_model = model.with_structured_output(ResearchBriefing)
     output = briefing_model.invoke(
         [
@@ -111,7 +111,7 @@ def write_briefing(state: ReportingState) -> dict:
     output_path = Path(state.get("output_path") or _default_output_path())
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(briefing, encoding="utf-8")
-    print(f"Wrote research briefing to {output_path}")
+    logger.info(f"Wrote research briefing to {output_path}")
 
     docx_path = output_path.with_suffix(".docx")
     try:
@@ -121,7 +121,7 @@ def write_briefing(state: ReportingState) -> dict:
     except (OSError, RuntimeError) as exc:
         raise RuntimeError(f"pandoc failed to convert briefing to docx: {exc}") from exc
     output_path.unlink()
-    print(f"Exported research briefing to {docx_path} and removed {output_path}")
+    logger.info(f"Exported research briefing to {docx_path} and removed {output_path}")
     return {"docx_path": str(docx_path)}
 
 
