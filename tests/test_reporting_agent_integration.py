@@ -62,7 +62,7 @@ PAPERS = [
 
 
 class TestReportingAgentIntegration:
-    # @pytest.mark.integration
+    @pytest.mark.integration
     def test_briefing_generation(self, tmp_path: Path) -> None:
         result = manage_reporting.invoke({"insights": INSIGHTS, "papers": PAPERS})
 

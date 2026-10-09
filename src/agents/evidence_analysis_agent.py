@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-from framework import shallow_paper_json
+from framework import logger, shallow_paper_json
 from search_api import Paper
 
 # Quality thresholds for assess_evidence_quality; tests may monkeypatch these attributes.
@@ -30,26 +30,26 @@ def _has_quality_metrics(paper: Paper) -> bool:
         and paper.referenceCount > MIN_REFERENCE_COUNT
         and paper.citationCount > MIN_CITATION_COUNT
     )
-    print(f"Quality metrics for paper '{json.dumps(shallow_paper_json(paper), indent=2)}': {result}")
+    logger.info(f"Quality metrics for paper '{json.dumps(shallow_paper_json(paper), indent=2)}': {result}")
     return result
 
 
 def _has_complete_journal_info(paper: Paper) -> bool:
     """Journal must report a name, volume, and pages, and the paper must have a DOI."""
-    print(f"Journal info for paper '{paper.title}': {paper.journal}")
+    logger.info(f"Journal info for paper '{paper.title}': {paper.journal}")
     journal = paper.journal
     has_doi = bool(paper.externalIds and paper.externalIds.DOI)
     result = bool(journal and journal.name and journal.volume and journal.pages and has_doi)
-    print(f"Complete journal info for paper '{paper.title}': {result}")
+    logger.info(f"Complete journal info for paper '{paper.title}': {result}")
     return result
 
 
 def _has_peer_reviewed_type(paper: Paper) -> bool:
     """Publication types must include a journal article or conference paper."""
-    print(f"Publication types for paper '{paper.title}': {paper.publicationTypes}")
+    logger.info(f"Publication types for paper '{paper.title}': {paper.publicationTypes}")
     publication_types = paper.publicationTypes or []
     result = any(publication_type.lower() in ("journalarticle", "conference") for publication_type in publication_types)
-    print(f"Peer-reviewed type for paper '{paper.title}': {result}")
+    logger.info(f"Peer-reviewed type for paper '{paper.title}': {result}")
     return result
 
 
@@ -65,7 +65,7 @@ def assess_evidence_quality(paper: Paper) -> str:
     verdict = RELIABLE_DESCRIPTION if score == len(checks) else QUESTIONABLE_DESCRIPTION if score > 0 else UNRELIABLE_DESCRIPTION
     failed = [rule for rule, passed in checks.items() if not passed]
     details = "all checks passed" if not failed else f"failed: {', '.join(failed)}"
-    print(f"Assessing evidence quality for paper '{paper.title}': {verdict} ({score}/{len(checks)}) - {details}")
+    logger.info(f"Assessing evidence quality for paper '{paper.title}': {verdict} ({score}/{len(checks)}) - {details}")
     return verdict
 
 
@@ -81,7 +81,7 @@ def assess_evidence_quality_node(state: EvidenceAnalysisState, config: RunnableC
     if not papers:
         raise RuntimeError("No papers were provided to assess evidence quality.")
 
-    print(f"Assessing evidence quality for {len(papers)} papers")
+    logger.info(f"Assessing evidence quality for {len(papers)} papers")
     tool_results = [assess_evidence_quality.invoke({"paper": paper}, config=config) for paper in papers]
     if all(r == RELIABLE_DESCRIPTION for r in tool_results):
         quality_feedback = RELIABLE_DESCRIPTION
@@ -89,7 +89,7 @@ def assess_evidence_quality_node(state: EvidenceAnalysisState, config: RunnableC
         quality_feedback = UNRELIABLE_DESCRIPTION
     else:
         quality_feedback = QUESTIONABLE_DESCRIPTION
-    print(f"Evidence quality assessment for {len(papers)} papers completed with feedback: {quality_feedback}")
+    logger.info(f"Evidence quality assessment for {len(papers)} papers completed with feedback: {quality_feedback}")
     return {"quality_feedback": quality_feedback}
 
 

@@ -1,8 +1,15 @@
 """Entry point for running the multi-agent application."""
 import argparse
 import sys
-from datetime import datetime
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env before importing the agent modules, since several of them read env vars
+# (e.g. NUM_SEARCH_DIMENSIONS) at import time. override=True so .env always wins over
+# stale values already exported in the shell (e.g. from a terminal opened before .env
+# was last edited) — otherwise load_dotenv() leaves pre-existing env vars untouched.
+load_dotenv(override=True)
 
 # This repo uses flat-namespace imports (e.g. `from framework import model`) across
 # src/agents, src/tools, src/utils, so those dirs must be on sys.path when run directly.
@@ -12,39 +19,9 @@ for _subdir in ("agents", "tools", "utils"):
 
 from supervisor import supervisor_graph
 
-TARGET_DIR = _SRC_DIR.parent / "target"
-LOGS_DIR = _SRC_DIR.parent / "logs"
-
-
-class _Tee:
-    """Writes to multiple streams at once, e.g. the console and a log file."""
-
-    def __init__(self, *streams):
-        self._streams = streams
-
-    def write(self, data):
-        for stream in self._streams:
-            stream.write(data)
-
-    def flush(self):
-        for stream in self._streams:
-            stream.flush()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the multi-agent research application.")
     parser.add_argument("request", help="The research question to investigate")
     args = parser.parse_args()
 
-    TARGET_DIR.mkdir(parents=True, exist_ok=True)
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%z")
-    log_path = LOGS_DIR / f"run_output_{timestamp}.log"
-
-    with open(log_path, "w") as log_file:
-        sys.stdout = _Tee(sys.__stdout__, log_file)
-        try:
-            result = supervisor_graph.invoke({"request": args.request})
-        finally:
-            sys.stdout = sys.__stdout__
-            print(f"Run output saved to: {log_path}")
+    supervisor_graph.invoke({"request": args.request})

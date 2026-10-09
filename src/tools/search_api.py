@@ -8,6 +8,8 @@ import requests
 from langchain.tools import tool
 from pydantic import BaseModel
 
+from logging_config import logger
+
 MOCK_SEMANTIC_SCHOLAR_API_URL = "http://localhost:8000/paper/search"
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 # SEMANTIC_SCHOLAR_API_URL = MOCK_SEMANTIC_SCHOLAR_API_URL
@@ -73,7 +75,7 @@ def _num_configured_semantic_scholar_keys() -> int:
 
 def _fetch_papers(query_params: dict, api_key: str) -> dict:
     """Perform a single Semantic Scholar search request and return the parsed JSON body."""
-    print(f"Using Semantic Scholar API key: {api_key}")
+    logger.info(f"Using Semantic Scholar API key: {api_key}")
     headers = {"x-api-key": api_key}
     response = requests.get(SEMANTIC_SCHOLAR_API_URL, params=query_params, headers=headers, timeout=10)
     response.raise_for_status()
@@ -85,7 +87,7 @@ def search_papers(
     query: str
 ) -> list[Paper]:
     """Search for academic papers using the given query."""
-    print(f"Searching for papers with query: {query}")
+    logger.info(f"Searching for papers with query: {query}")
     query_params = {
         "query": query,
         "limit": 1,
@@ -104,10 +106,10 @@ def search_papers(
         except requests.exceptions.HTTPError as exc:
             is_rate_limited = exc.response is not None and exc.response.status_code == 429
             if is_rate_limited and attempt < max_attempts - 1:
-                print(f"Rate limited (429) for query {query!r} using key {api_key!r}; retrying with a different key")
+                logger.info(f"Rate limited (429) for query {query!r} using key {api_key!r}; retrying with a different key")
                 continue
             if is_rate_limited:
-                print(
+                logger.info(
                     f"All Semantic Scholar API keys rate limited (429) for query {query!r}; "
                     f"waiting {RATE_LIMIT_WAIT_SECONDS}s before a single final retry"
                 )
@@ -116,21 +118,21 @@ def search_papers(
                     result = _fetch_papers(query_params, _get_semantic_scholar_api_key())
                     break
                 except (requests.exceptions.RequestException, ValueError) as retry_exc:
-                    print(f"Request failed for query {query!r} after waiting for rate limit: {retry_exc}")
+                    logger.info(f"Request failed for query {query!r} after waiting for rate limit: {retry_exc}")
                     raise RuntimeError(
                         f"search_papers request failed for query {query!r}: {retry_exc}"
                     ) from retry_exc
-            print(f"Request failed for query {query!r}: {exc}")
+            logger.info(f"Request failed for query {query!r}: {exc}")
             raise RuntimeError(f"search_papers request failed for query {query!r}: {exc}") from exc
         except requests.exceptions.RequestException as exc:
-            print(f"Request failed for query {query!r}: {exc}")
+            logger.info(f"Request failed for query {query!r}: {exc}")
             raise RuntimeError(f"search_papers request failed for query {query!r}: {exc}") from exc
         except ValueError as exc:
-            print(f"Invalid JSON returned for query {query!r}: {exc}")
+            logger.info(f"Invalid JSON returned for query {query!r}: {exc}")
             raise RuntimeError(f"search_papers returned invalid JSON for query {query!r}: {exc}") from exc
 
     assert result is not None  # loop above always either sets result or raises
     papers = result.get("data", []) or []
     if not papers:
-        print(f"WARNING: search_papers got a 200 response with no papers for query {query!r}")
+        logger.warning(f"search_papers got a 200 response with no papers for query {query!r}")
     return [Paper(**paper) for paper in papers]
